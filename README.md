@@ -63,7 +63,7 @@ LAMBDA Framework
 └── Framework Entry
     ├── run.py                    # Main runtime interface
     ├── main.py                   # Static analysis entry point
-    ├── prompt_generator.py       # Initail test prompt generation
+    ├── prompt_generator.py       # Test prompt generation for the root node
     └── failmapper_framework.py   # FailMapper framework core
 ```
 
