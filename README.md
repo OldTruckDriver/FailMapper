@@ -108,13 +108,13 @@ python run.py /path/to/java/project \
 python main.py /path/to/java/project --output_dir ./analysis_results
 ```
 
-#### Step 2: Generate Test Prompts
+#### Step 2: Generate Test Prompts for Initiallization
 ```bash
 python prompt_generator.py ./analysis_results/project_name/project_name_combined_analysis.json \
     --output_dir ./analysis_results/project_name/prompts
 ```
 
-#### Step 3: Run LAMBDA Framework
+#### Step 3: Run FailMapper Framework
 ```bash
 python failmapper_framework.py \
     --project /path/to/java/project \
@@ -134,7 +134,7 @@ python failmapper_framework.py \
 | `--class_name` | Target class name | ✅ | - |
 | `--package` | Target package name | ✅ | - |
 
-### lambda_framework.py Advanced Parameters
+### failmapper_framework.py Advanced Parameters
 
 | Parameter | Description | Default |
 |------|------|--------|

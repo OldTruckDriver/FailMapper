@@ -20,12 +20,12 @@ import traceback
 from collections import defaultdict
 
 # Import core components
-from logic_model_extractor import LogicModelExtractor
-from logic_bug_patterns import LogicBugPatternDetector
-from logic_aware_mcts import LogicAwareMCTS
-from logic_bug_verifier import LogicBugVerifier
+from model_extractor import LogicModelExtractor
+from failure_scenario import LogicBugPatternDetector
+from fa_mcts import LogicAwareMCTS
+from bug_verifier import LogicBugVerifier
 from test_generation_strategies import LogicTestStrategySelector
-from logic_test_state import LogicAwareTestState
+from test_state import LogicAwareTestState
 
 # Import from enhanced_mcts_test_generator for compatibility
 from enhanced_mcts_test_generator import TestValidator, TestMethodExtractor
@@ -427,10 +427,10 @@ def main():
     parser.add_argument("--target-coverage", type=float, default=100.0, help="Target coverage percentage")
     parser.add_argument("--verify-mode", choices=["immediate", "batch", "none"], default="batch",
                         help="When to verify bugs: during MCTS (immediate), after (batch), or not at all (none)")
-    parser.add_argument("--logic-weight", type=float, default=2.0, 
-                        help="Weight for logic-related rewards (higher = more focus on logic)")
-    parser.add_argument("--logical-bugs-threshold", type=int, default=1000, 
-                        help="Number of logical bugs to find before terminating search")
+    parser.add_argument("--failure-weight", type=float, default=2.0, 
+                        help="Weight for failure-related rewards (higher = more focus on failure)")
+    parser.add_argument("--bugs-threshold", type=int, default=1000, 
+                        help="Number of bugs to find before terminating search")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
     
     args = parser.parse_args()
@@ -443,8 +443,8 @@ def main():
         max_iterations=args.max_iterations,
         target_coverage=args.target_coverage,
         verify_mode=args.verify_mode,
-        logic_weight=args.logic_weight,
-        logical_bugs_threshold=args.logical_bugs_threshold,
+        failure_weight=args.failure_weight,
+        bugs_threshold=args.bugs_threshold,
         verbose=args.verbose
     )
     

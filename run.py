@@ -42,7 +42,7 @@ def main():
     #         "--class", args.class_name, 
     #         "--package", args.package]
     
-    cmd3 = ["python", "lambda_framework.py", 
+    cmd3 = ["python", "failmapper_framework.py", 
             "--project", args.project_path, 
             "--prompt", prompts_dir, 
             "--class", args.class_name, 
