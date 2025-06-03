@@ -1,11 +1,11 @@
-# LAMBDA Framework - Logic-Aware Monte Carlo Bug Detection Architecture
+# FailMapper Framework - Failure-Aware Monte Carlo Bug Detection Architecture
 
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## Overview
 
-LAMBDA (Logic-Aware Monte Carlo Bug Detection Architecture) is an intelligent Java code analysis and test generation framework. This framework combines static code analysis, logic model extraction, and Monte Carlo Tree Search (MCTS)-based test generation techniques, specifically designed for detecting logical errors in Java code and generating high-quality unit tests.
+FailMapper (Failure-Aware Monte Carlo Bug Detection Architecture) is an intelligent Java code analysis and test generation framework. This framework combines static code analysis, failure scenario model extraction, and Monte Carlo Tree Search (MCTS)-based test generation techniques, specifically designed for detecting bugs in Java code and generating high-quality unit tests.
 
 ## Core Features
 
@@ -15,14 +15,14 @@ LAMBDA (Logic-Aware Monte Carlo Bug Detection Architecture) is an intelligent Ja
 - **Indirect Dependency Analysis** - Identify deep-level code dependencies
 - **Boundary Condition Detection** - Automatically identify potential boundary value issues
 
-### 🧠 **Intelligent Logic Modeling**
-- **Logic Model Extraction** - Extract business logic patterns from source code
-- **Logic Error Pattern Detection** - Identify common logic error patterns
-- **Conditional Branch Analysis** - Deep analysis of conditional statements and branch logic
+### 🧠 **Intelligent Failure Scenario Modeling**
+- **Model Extraction** - Extract failure scenario causes from source code
+- **Failure Scenarios Detection** - Identify common failure scenarios
+- **Conditional Branch Analysis** - Deep analysis of conditional statements and branch
 - **Exception Handling Analysis** - Check completeness of exception handling
 
 ### 🎯 **Enhanced Test Generation**
-- **Logic-Aware MCTS** - Intelligent test generation based on logic models
+- **Failure-Aware MCTS** - Intelligent test generation based on failure scenario models
 - **Adaptive Test Strategy** - Adjust test strategies based on code characteristics
 - **Coverage-Driven Optimization** - Intelligently improve code coverage
 - **Bug-Driven Testing** - Prioritize generating test cases that can detect potential errors
@@ -42,29 +42,29 @@ LAMBDA Framework
 │   ├── data_flow_analyzer.py     # Data flow analysis
 │   └── boundary_exception_analyzer.py # Boundary condition and exception analysis
 │
-├── Logic Modeling Layer
-│   ├── logic_model_extractor.py  # Logic model extraction
-│   ├── logic_bug_patterns.py     # Logic error pattern detection
+├── Modeling Layer
+│   ├── model_extractor.py        # Failure scenario model extraction
+│   ├── failure_scenario.py       # Failure scenario detection
 │   ├── business_logic_analyzer.py # Business logic analysis
 │   └── semantic_analyzer.py      # Semantic analysis
 │
 ├── Test Generation Layer
-│   ├── logic_aware_mcts.py       # Logic-aware MCTS algorithm
-│   ├── enhanced_mcts_test_generator.py # Enhanced test generator
-│   ├── logic_test_state.py       # Logic test state management
+│   ├── fa_mcts.py                # Failure-aware MCTS algorithm
+│   ├── enhanced_mcts_test_generator.py # Adapted MCTS generator
+│   ├── test_state.py             # Test state management
 │   └── enhanced_test_state.py    # Enhanced test state
 │
 ├── Verification & Feedback Layer
-│   ├── logic_bug_verifier.py     # Logic error verifier
+│   ├── bug_verifier.py           # Bug verifier
 │   ├── verify_bug_with_llm.py    # LLM-assisted verification
 │   ├── feedback.py               # Feedback mechanism
-│   └── logic_validation_engine.py # Logic validation engine
+│   └── validation_engine.py      # validation engine
 │
 └── Framework Entry
     ├── run.py                    # Main runtime interface
     ├── main.py                   # Static analysis entry point
-    ├── prompt_generator.py       # Test prompt generation
-    └── lambda_framework.py       # LAMBDA framework core
+    ├── prompt_generator.py       # Initail test prompt generation
+    └── failmapper_framework.py   # FailMapper framework core
 ```
 
 ## Installation Requirements
@@ -116,7 +116,7 @@ python prompt_generator.py ./analysis_results/project_name/project_name_combined
 
 #### Step 3: Run LAMBDA Framework
 ```bash
-python lambda_framework.py \
+python failmapper_framework.py \
     --project /path/to/java/project \
     --prompt ./analysis_results/project_name/prompts \
     --class YourClassName \
@@ -141,8 +141,8 @@ python lambda_framework.py \
 | `--max_iterations` | MCTS maximum iterations | 20 |
 | `--target_coverage` | Target coverage (%) | 100.0 |
 | `--verify_mode` | Verification mode (immediate/batch/none) | batch |
-| `--logic_weight` | Logic awareness weight | 2.0 |
-| `--logical_bugs_threshold` | Logic error threshold | 15 |
+| `--failure_weight` | Failure awareness weight | 2.0 |
+| `--bugs_threshold` | Bug threshold | 15 |
 | `--verbose` | Verbose output | False |
 
 ## Output Description
@@ -161,21 +161,21 @@ python lambda_framework.py \
 
 ## Core Algorithms
 
-### 1. Logic-Aware MCTS
+### 1. Failure-Aware MCTS
 ```python
 # Core algorithm concept
-reward = base_reward + logic_weight * logic_score
+reward = base_reward + bug_weight * bug_score
 ```
-- Adjust search strategy based on logic models
-- Prioritize exploring code paths that may contain logic errors
+- Adjust search strategy based on models
+- Prioritize exploring code paths that may contain errors
 - Dynamically adjust test generation direction
 
-### 2. Logic Error Pattern Detection
+### 2. Failure Scenario Detection
 Supported error patterns:
-- Conditional Logic Errors
+- Conditional Errors
 - Boundary Value Errors
 - Null Pointer References
-- Loop Logic Errors
+- Loop Errors
 - Missing Exception Handling
 
 ## Usage Examples
@@ -190,12 +190,12 @@ python run.py ~/projects/spring-boot-app \
 
 ### Example 2: Batch Processing Mode
 ```bash
-python lambda_framework.py \
+python failmapper_framework.py \
     --project ~/projects/my-java-app \
     --prompt ./prompts \
     --batch \
     --max_iterations 50 \
-    --logic_weight 3.0
+    --bug_weight 3.0
 ```
 
 ## Performance Optimization Recommendations
@@ -209,7 +209,7 @@ python lambda_framework.py \
 - Use `--target_coverage` to set reasonable coverage targets
 
 ### 3. Quality Optimization
-- Increase `--logic_weight` parameter to focus on logic error detection
+- Increase `--bug_weight` parameter to focus on error detection
 - Use `verify_mode=immediate` for real-time verification
 
 ## Troubleshooting
