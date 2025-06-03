@@ -393,61 +393,61 @@ def call_deepseek_api(prompt, model=DEEPSEEK_DEFAULT_MODEL, max_tokens=DEEPSEEK_
 
 def extract_java_code(text):
     """提取更可靠的Java代码提取"""
-    # 首先尝试匹配单个完整的Java代码块（整个类）
+    # first try to match a single complete Java code block (the entire class)
     class_pattern = re.compile(r'```java\s*((?:public\s+)?(?:class|interface|enum)\s+\w+[\s\S]*?)\s*```', re.DOTALL)
     class_match = class_pattern.search(text)
     
     if class_match:
         extracted_code = class_match.group(1)
-        # 确保代码是完整的，包含了完整的类定义，而不仅仅是片段
+        # ensure the code is complete, including the full class definition, not just a fragment
         if "class " in extracted_code and "{" in extracted_code and extracted_code.strip().endswith("}"):
             return extracted_code
     
-    # 如果没有找到完整类，则收集所有Java代码块并连接
+    # if no complete class is found, collect all Java code blocks and concatenate them
     java_pattern = re.compile(r'```java\s*(.*?)\s*```', re.DOTALL)
     matches = java_pattern.findall(text)
     
     if matches:
-        # 检查是否有一个代码块包含完整类定义
+        # check if there is a code block that contains a complete class definition
         for match in matches:
             if "class " in match and "{" in match and match.strip().endswith("}"):
                 return match
                 
-        # 如果没有完整类，但有代码块，使用最长的那个
+        # if there is no complete class, but there are code blocks, use the longest one
         if len(matches) == 1:
             return matches[0]
         else:
-            # 如果有多个代码块，尝试智能合并它们
+            # if there are multiple code blocks, try to intelligently merge them
             combined_code = "\n\n".join(matches)
-            # 检查合并后的代码是否是完整的类
+            # check if the merged code is a complete class
             if "class " in combined_code and "{" in combined_code and combined_code.strip().endswith("}"):
                 return combined_code
             else:
-                # 如果合并后的代码不完整，返回最长的代码块
+                # if the merged code is not complete, return the longest code block
                 return max(matches, key=len)
     
-    # 回退到任意代码块
+    # fallback to any code block
     code_pattern = re.compile(r'```\s*(.*?)\s*```', re.DOTALL)
     matches = code_pattern.findall(text)
     
     if matches:
-        # 尝试找到包含完整类定义的代码块
+        # try to find a code block that contains a complete class definition
         for match in matches:
             if "class " in match and "{" in match and match.strip().endswith("}"):
                 return match
         
-        # 否则返回最长的代码块
+        # otherwise return the longest code block
         return max(matches, key=len)
     
-    # 最后的尝试：提取引号之间的任何内容，如果看起来像Java代码
+    # final attempt: extract any content between quotes, if it looks like Java code
     if "public class" in text or "import " in text:
-        # 尝试提取从class声明到最后一个花括号之间的内容
+        # try to extract the content from the class declaration to the last brace
         class_start = text.find("public class")
         if class_start == -1:
             class_start = text.find("class ")
         
         if class_start != -1:
-            # 找到类开始位置后，尝试提取直到结束的内容
+            # after finding the class start position, try to extract the content until the end
             open_braces = 0
             in_class = False
             class_content = []
@@ -468,10 +468,10 @@ def extract_java_code(text):
             if class_content:
                 return '\n'.join(class_content)
         
-        # 如果还是无法提取，返回整个文本，它可能包含Java代码
+        # if still cannot extract, return the entire text, it may contain Java code
         return text
         
-    # 如果上述方法都失败，返回原始文本
+    # if all methods fail, return the original text
     return text
 
 def generate_initial_test(test_prompt_file, source_code):

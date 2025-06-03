@@ -22,7 +22,7 @@ class LogicModelExtractor:
     logical operations, control flow paths, and data dependencies.
     """
     
-    # 修改 LogicModelExtractor 类的 __init__ 方法
+    # first modify the __init__ method of the LogicModelExtractor class
     def __init__(self, source_code, class_name, package_name):
         """
         Initialize with source code to analyze
