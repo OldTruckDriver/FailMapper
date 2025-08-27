@@ -172,8 +172,6 @@ FailMapper generates several types of output:
 
 ## Configuration
 
- # FailMapper
-
 ## API Key Configuration
 
 FailMapper supports multiple AI providers for test generation. You need to configure at least one API key to use the system.
@@ -209,7 +207,7 @@ api_response = call_deepseek_api(prompt)
 
 ### Configuration Methods
 
-#### 1. Command Line Arguments (Recommended)
+#### 1. Command Line Arguments
 ```bash
 python run.py /path/to/project --output_dir ./output --class_name MyClass --package com.example --anthropic_api_key YOUR_API_KEY
 ```
@@ -235,25 +233,25 @@ python run.py /path/to/project --output_dir ./output --class_name MyClass --pack
 python run.py /path/to/project --output_dir ./output --class_name Calculator --package com.example.math --anthropic_api_key sk-ant-api03-...
 ```
 
-2. **Multiple providers:**
+<!-- 2. **Multiple providers:**
 ```bash
 python run.py /path/to/project \
   --output_dir ./output \
   --class_name Calculator \
   --package com.example.math \
   --anthropic_api_key sk-ant-api03-...
-```
+``` -->
 
-3. **Using environment variables:**
+2. **Using environment variables:**
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-api03-..."
 python run.py /path/to/project --output_dir ./output --class_name Calculator --package com.example.math
 ```
 
-### Security Notes
+<!-- ### Security Notes
 - Never commit API keys to version control
 - Use environment variables or secure secret management for production
-- The interactive input method hides the key while typing for security
+- The interactive input method hides the key while typing for security -->
 
 
 ### Project Type Detection
