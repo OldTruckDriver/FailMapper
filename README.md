@@ -67,7 +67,7 @@ Unlike traditional test generation tools that focus primarily on code coverage, 
 FailMapper follows a three-stage pipeline architecture:
 
 ```
-Input: Java Project → [Static Analysis] → [Prompt Generation] → [Failure-Aware Test Generation] → Output: Test Cases
+Input: Java Project → [Static Analysis] → [Prompt Generation] → [Failure-Aware Test Generation] → Output: Test Cases + Bug Reports
 ```
 
 ### Stage 1: Static Analysis Engine
