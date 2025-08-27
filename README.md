@@ -106,7 +106,6 @@ pip install -r requirements.txt
 3. Configure your LLM provider (set API keys as environment variables):
 ```bash
 export ANTHROPIC_API_KEY="your-claude-api-key"
-export OPENAI_API_KEY="your-openai-api-key"
 # or other supported providers
 ```
 
