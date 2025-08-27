@@ -6,6 +6,8 @@
 - Python 3.7 or higher
 - Java 8 or higher (for running tests)
 - Maven or Gradle (for Java project build)
+- Junit5
+- Jacoco 0.8.8
 
 ### Install Dependencies
 
