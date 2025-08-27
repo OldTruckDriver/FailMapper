@@ -26,25 +26,25 @@ class EnhancedJavaDependencyAnalyzer:
         with open(file_path, 'r') as f:
             content = f.read()
         
-        # Analyze package name
+        # 分析包名
         package_name = self._get_package_name(content)
         
-        # Analyze class names (including inner classes)
+        # 分析类名（包括内部类）
         classes = self._get_classes(content)
         
         for class_name in classes:
             full_class_name = f"{package_name}.{class_name}"
             
-            # Analyze imports
+            # 分析导入
             imports = self._get_imports(content)
             self.dependencies[full_class_name].update(imports)
             
-            # Analyze inheritance and interface implementation
+            # 分析继承和接口实现
             inheritance = self._get_inheritance(content, class_name)
             self.inheritance_map[full_class_name].update(inheritance)
             self.dependencies[full_class_name].update(inheritance)
             
-            # Analyze method-level dependencies
+            # 分析方法级依赖
             method_dependencies = self._get_method_dependencies(content, class_name)
             self.dependencies[full_class_name].update(method_dependencies)
 
@@ -71,8 +71,8 @@ class EnhancedJavaDependencyAnalyzer:
         return []
 
     def _get_method_dependencies(self, content, class_name):
-        # Here we use a simple method to detect class usage within methods
-        # In practice, this requires more complex syntax analysis
+        # 这里我们使用一个简单的方法来检测方法内的类使用
+        # 实际上，这需要更复杂的语法分析
         class_content = re.search(rf'class\s+{class_name}.*?{{(.*?)}}', content, re.DOTALL)
         if class_content:
             return set(re.findall(r'new\s+([\w.]+)', class_content.group(1)))

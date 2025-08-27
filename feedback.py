@@ -29,23 +29,23 @@ logging.basicConfig(
 logger = logging.getLogger("test_generator")
 
 # API settings
-API_KEY = "your key"
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
-DEFAULT_MODEL = os.environ.get("OPENAI_MODEL", "your model name") 
+DEFAULT_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o") 
 DEFAULT_MAX_TOKENS = 4096
 DEFAULT_TEMPERATURE = 0.7
 
-ANTHROPIC_API_KEY = "your key"
+
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
 ANTHROPIC_API_BASE = "https://api.anthropic.com/v1/"
-ANTHROPIC_DEFAULT_MODEL = "your model name"
-# ANTHROPIC_DEFAULT_MODEL = "claude-3-7-sonnet-latest"
+ANTHROPIC_DEFAULT_MODEL = "claude-3-5-sonnet-20241022"
 ANTHROPIC_DEFAULT_MAX_TOKENS = 8192
 ANTHROPIC_DEFAULT_TEMPERATURE = 0.7
 
 # DeepSeek API settings
-DEEPSEEK_API_KEY = "your key"
+DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 DEEPSEEK_API_BASE = "https://api.deepseek.com/v1"
-DEEPSEEK_DEFAULT_MODEL = "your model name"
+DEEPSEEK_DEFAULT_MODEL = "deepseek-coder"
 DEEPSEEK_DEFAULT_MAX_TOKENS = 8192
 DEEPSEEK_DEFAULT_TEMPERATURE = 0.7
 
@@ -135,13 +135,13 @@ def call_gpt_api(prompt, model=DEFAULT_MODEL, max_tokens=DEFAULT_MAX_TOKENS, tem
     request_start = time.time()
     
     try:
-        if not API_KEY:
+        if not OPENAI_API_KEY:
             raise ValueError("OpenAI API key not set. Please set OPENAI_API_KEY environment variable.")
         
         session = create_session()
         
         headers = {
-            "Authorization": f"Bearer {API_KEY}",
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
             "Content-Type": "application/json"
         }
         
@@ -236,8 +236,8 @@ def call_anthropic_api(prompt, model=ANTHROPIC_DEFAULT_MODEL, max_tokens=ANTHROP
     request_start = time.time()
     
     try:
-        if not API_KEY:
-            raise ValueError("Anthropic API key not set. Please set API_KEY variable or environment variable.")
+        if not ANTHROPIC_API_KEY:
+            raise ValueError("ANTHROPIC API key not set. Please set ANTHROPIC_API_KEY environment variable or pass it via command line.")
         
         session = create_anthropic_session()
         
@@ -391,63 +391,88 @@ def call_deepseek_api(prompt, model=DEEPSEEK_DEFAULT_MODEL, max_tokens=DEEPSEEK_
         logging.error(f"Exception in call_deepseek_api: {str(e)}")
         return f"ERROR: {str(e)}"
 
+def clean_forbidden_comments(code):
+    """Clean up forbidden placeholder comments from Java code"""
+    # List of forbidden comment patterns
+    forbidden_patterns = [
+        r'//\s*\.\.\.\s*existing\s+code\s*\.\.\.',
+        r'//\s*\[Previous\s+imports\s+remain\s+exactly\s+the\s+same\]',
+        r'//\s*\[Previous\s+imports\s+remain\s+exactly\s+as\s+shown\s+in\s+the\s+original\s+code\]',
+        r'//\s*\[Previous\s+test\s+methods\s+remain\s+exactly\s+as\s+shown\s+in\s+the\s+original\s+code\]',
+        r'//\s*All\s+previous\s+fields\s+and\s+methods\s+remain\s+exactly\s+the\s+same',
+        r'//\s*existing\s+code\s*\.\.\.',
+        r'/\*\s*\.\.\.\s*existing\s+code\s*\.\.\.\s*\*/',
+    ]
+    
+    cleaned_code = code
+    for pattern in forbidden_patterns:
+        cleaned_code = re.sub(pattern, '', cleaned_code, flags=re.IGNORECASE)
+    
+    # Remove empty lines that might be left after removing comments
+    lines = cleaned_code.split('\n')
+    cleaned_lines = [line for line in lines if line.strip() or not line.strip().startswith('//')]
+    
+    return '\n'.join(cleaned_lines)
+
 def extract_java_code(text):
     """提取更可靠的Java代码提取"""
-    # first try to match a single complete Java code block (the entire class)
+    # 首先尝试匹配单个完整的Java代码块（整个类）
     class_pattern = re.compile(r'```java\s*((?:public\s+)?(?:class|interface|enum)\s+\w+[\s\S]*?)\s*```', re.DOTALL)
     class_match = class_pattern.search(text)
     
     if class_match:
         extracted_code = class_match.group(1)
-        # ensure the code is complete, including the full class definition, not just a fragment
+        # 确保代码是完整的，包含了完整的类定义，而不仅仅是片段
         if "class " in extracted_code and "{" in extracted_code and extracted_code.strip().endswith("}"):
+            # Clean up forbidden comments before returning
+            extracted_code = clean_forbidden_comments(extracted_code)
             return extracted_code
     
-    # if no complete class is found, collect all Java code blocks and concatenate them
+    # 如果没有找到完整类，则收集所有Java代码块并连接
     java_pattern = re.compile(r'```java\s*(.*?)\s*```', re.DOTALL)
     matches = java_pattern.findall(text)
     
     if matches:
-        # check if there is a code block that contains a complete class definition
+        # 检查是否有一个代码块包含完整类定义
         for match in matches:
             if "class " in match and "{" in match and match.strip().endswith("}"):
-                return match
+                return clean_forbidden_comments(match)
                 
-        # if there is no complete class, but there are code blocks, use the longest one
+        # 如果没有完整类，但有代码块，使用最长的那个
         if len(matches) == 1:
-            return matches[0]
+            return clean_forbidden_comments(matches[0])
         else:
-            # if there are multiple code blocks, try to intelligently merge them
+            # 如果有多个代码块，尝试智能合并它们
             combined_code = "\n\n".join(matches)
-            # check if the merged code is a complete class
+            # 检查合并后的代码是否是完整的类
             if "class " in combined_code and "{" in combined_code and combined_code.strip().endswith("}"):
-                return combined_code
+                return clean_forbidden_comments(combined_code)
             else:
-                # if the merged code is not complete, return the longest code block
-                return max(matches, key=len)
+                # 如果合并后的代码不完整，返回最长的代码块
+                return clean_forbidden_comments(max(matches, key=len))
     
-    # fallback to any code block
+    # 回退到任意代码块
     code_pattern = re.compile(r'```\s*(.*?)\s*```', re.DOTALL)
     matches = code_pattern.findall(text)
     
     if matches:
-        # try to find a code block that contains a complete class definition
+        # 尝试找到包含完整类定义的代码块
         for match in matches:
             if "class " in match and "{" in match and match.strip().endswith("}"):
-                return match
+                return clean_forbidden_comments(match)
         
-        # otherwise return the longest code block
-        return max(matches, key=len)
+        # 否则返回最长的代码块
+        return clean_forbidden_comments(max(matches, key=len))
     
-    # final attempt: extract any content between quotes, if it looks like Java code
+    # 最后的尝试：提取引号之间的任何内容，如果看起来像Java代码
     if "public class" in text or "import " in text:
-        # try to extract the content from the class declaration to the last brace
+        # 尝试提取从class声明到最后一个花括号之间的内容
         class_start = text.find("public class")
         if class_start == -1:
             class_start = text.find("class ")
         
         if class_start != -1:
-            # after finding the class start position, try to extract the content until the end
+            # 找到类开始位置后，尝试提取直到结束的内容
             open_braces = 0
             in_class = False
             class_content = []
@@ -466,13 +491,13 @@ def extract_java_code(text):
                     break
                     
             if class_content:
-                return '\n'.join(class_content)
+                return clean_forbidden_comments('\n'.join(class_content))
         
-        # if still cannot extract, return the entire text, it may contain Java code
-        return text
+        # 如果还是无法提取，返回整个文本，它可能包含Java代码
+        return clean_forbidden_comments(text)
         
-    # if all methods fail, return the original text
-    return text
+    # 如果上述方法都失败，返回原始文本
+    return clean_forbidden_comments(text)
 
 def generate_initial_test(test_prompt_file, source_code):
     """
@@ -507,11 +532,25 @@ Important notes:
 5. Always provide a complete, well-structured test class that will compile without any modifications.
 6. Use straightforward test methods without nesting to ensure proper coverage tracking.
 
+STRICT ANTI-MOCKING REQUIREMENTS:
+- ABSOLUTELY NO use of any mocking frameworks (Mockito, EasyMock, PowerMock, etc.)
+- ABSOLUTELY NO @Mock, @MockBean, @InjectMocks, or any mock-related annotations
+- ABSOLUTELY NO imports from org.mockito.* or static imports from Mockito
+- ABSOLUTELY NO mock(), when(), verify(), or any mocking methods
+- Use ONLY real objects and direct instantiation for testing
+- Create real instances of dependencies instead of mocks
+- Focus on testing actual behavior with real object interactions
 
 Please generate a complete JUnit test class, ensuring coverage of all main functionality.
 Use JUnit 5 (Jupiter) annotations and assertions. Please follow all testing requirements in the prompt.
 
-IMPORTANT: YOUR RESPONSE MUST CONTAIN THE COMPLETE TEST CLASS CODE. DO NOT OMIT ANY PARTS OF THE CODE OR USE PLACEHOLDERS.
+CRITICAL ANTI-PLACEHOLDER REQUIREMENTS:
+- YOUR RESPONSE MUST CONTAIN THE COMPLETE TEST CLASS CODE
+- DO NOT OMIT ANY PARTS OF THE CODE OR USE PLACEHOLDERS
+- FORBIDDEN: "// ... existing code ...", "// [Previous imports remain exactly the same]", "// All previous fields and methods remain exactly the same"
+- REQUIRED: Every single import, field, and method must be written out in full
+- NO shortcuts, abbreviations, or comments indicating omitted code are allowed
+- Your response must be compilable Java code that can be directly saved to a file
 """
     
     logger.info(f"Generating initial test, prompt length: {len(prompt)}")
@@ -569,7 +608,7 @@ def save_test_code(test_code, class_name, package_name, project_dir):
     test_dirs = [
         os.path.join(project_dir, "src", "test", "java", package_name.replace(".", os.sep)),
         os.path.join(project_dir, "src", "test", "java", "test", package_name.replace(".", os.sep)),
-        os.path.join(project_dir, "test", "java", package_name.replace(".", os.sep))
+        os.path.join(project_dir, "test", "java", package_name.replace(".", os.sep)),
     ]
     
     # Choose the first existing directory, create the first one if none exist
@@ -621,7 +660,7 @@ def run_maven_command(command, project_dir='.'):
     Returns:
     tuple: (success, stdout, stderr)
     """
-    full_command = f"mvn {command}"
+    full_command = f"mvn {command} -Dlicense.skip=true"
     
     try:
         process = subprocess.Popen(
@@ -641,6 +680,59 @@ def run_maven_command(command, project_dir='.'):
     except Exception as e:
         logger.error(f"Failed to run Maven command: {str(e)}")
         return False, "", str(e)
+
+def run_gradle_command(command, project_dir='.'):
+    """
+    Run Gradle command and return output and error information
+    
+    Parameters:
+    command (str): Gradle command
+    project_dir (str): Project directory
+    
+    Returns:
+    tuple: (success, stdout, stderr)
+    """
+    # Check if gradlew exists, otherwise use gradle
+    gradlew_path = os.path.join(project_dir, 'gradlew')
+    gradle_cmd = './gradlew' if os.path.exists(gradlew_path) else 'gradle'
+    
+    full_command = f"{gradle_cmd} {command}"
+    
+    try:
+        process = subprocess.Popen(
+            full_command,
+            shell=True,
+            cwd=project_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        stdout, stderr = process.communicate()
+        success = process.returncode == 0
+        
+        return success, stdout, stderr
+    
+    except Exception as e:
+        logger.error(f"Failed to run Gradle command: {str(e)}")
+        return False, "", str(e)
+
+def run_build_command(command, project_dir='.', project_type='maven'):
+    """
+    Run build command based on project type
+    
+    Parameters:
+    command (str): Build command
+    project_dir (str): Project directory
+    project_type (str): Project type ('maven' or 'gradle')
+    
+    Returns:
+    tuple: (success, stdout, stderr)
+    """
+    if project_type.lower() == 'gradle':
+        return run_gradle_command(command, project_dir)
+    else:
+        return run_maven_command(command, project_dir)
 
 def remove_ansi_escape_sequences(text):
     ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
@@ -676,6 +768,8 @@ def parse_maven_errors(output):
     if vm_limit_errors:
         compilation_errors.append(f"Critical memory error: {vm_limit_errors[0].strip()}")
     
+    # Note: Mockito usage is prohibited - any mockito-related errors indicate code needs refactoring to use real objects
+
     # Extract individual test failures - this is the key improvement
     # Look for lines like: [ERROR]   SoundexTest.testEmptyInput:79 expected: <0000> but was: <>
     test_failure_pattern = r'\[ERROR\]\s+([A-Za-z0-9_.]+\.[A-Za-z0-9_]+)(?::(\d+))?\s+(.*)'
@@ -708,52 +802,228 @@ def parse_maven_errors(output):
     
     return compilation_errors, assertion_failures
 
+def parse_gradle_errors(output):
+    """
+    Parse error information from Gradle output with improved test failure detection.
+    Extract each individual test failure as a separate error.
+    
+    Parameters:
+    output (str): Gradle command output
+    
+    Returns:
+    tuple: (compilation_errors, assertion_failures) - Lists of different error types
+    """
+    if not output:
+        return [], []
+        
+    # Clean ANSI codes
+    output = remove_ansi_escape_sequences(output)
+    
+    compilation_errors = []
+    assertion_failures = []
+    
+    # Check for OutOfMemory errors first (highest priority)
+    memory_errors = re.findall(r'(java\.lang\.OutOfMemoryError:.*?)(?:\n|\r\n|\r)', output)
+    if memory_errors:
+        compilation_errors.append(f"Critical memory error: {memory_errors[0].strip()}")
+    
+    # Check for VM limit errors (another form of OOM)
+    vm_limit_errors = re.findall(r'(Requested array size exceeds VM limit.*?)(?:\n|\r\n|\r)', output)
+    if vm_limit_errors:
+        compilation_errors.append(f"Critical memory error: {vm_limit_errors[0].strip()}")
+    
+    # Note: Mockito usage is prohibited - any mockito-related errors indicate code needs refactoring to use real objects
 
-def find_jacoco_report(project_dir):
+    # Check for compilation errors first - these take priority
+    # Pattern 1: Standard Java compilation errors with file:line:column format
+    compile_errors_detailed = re.findall(r'([^:]+\.java):(\d+):(\d+):\s*(error|warning):\s*(.*?)(?=\n|\r\n|\r|$)', output)
+    for file_path, line, column, error_type, error_msg in compile_errors_detailed:
+        # Extract just the filename from the full path
+        filename = os.path.basename(file_path)
+        if error_type == "error":  # Only treat actual errors as compilation errors
+            compilation_errors.append(f"{filename}:{line}:{column}: {error_type}: {error_msg.strip()}")
+    
+    # Pattern 2: General compilation error patterns (includes "cannot find symbol", "constructor not found", etc.)
+    # Look for common compilation error indicators
+    compilation_indicators = [
+        r'cannot find symbol',
+        r'constructor .* in class .* cannot be applied to given types',
+        r'cannot be applied to given types',
+        r'method .* cannot be applied to given types',
+        r'incompatible types',
+        r'package .* does not exist',
+        r'class .* is public, should be declared in a file named',
+        r'duplicate class',
+        r'variable .* might not have been initialized',
+        r'unreachable statement',
+        r'missing return statement',
+        r'illegal start of expression',
+        r'illegal start of type',
+        r'expected'
+    ]
+    
+    # Scan each line for compilation error indicators  
+    lines = output.split('\n')
+    for i, line in enumerate(lines):
+        line_stripped = line.strip()
+        
+        # Skip obvious non-error lines
+        if not line_stripped or line_stripped.startswith('*') or 'help.gradle.org' in line_stripped:
+            continue
+            
+        for indicator in compilation_indicators:
+            if re.search(indicator, line_stripped, re.IGNORECASE):
+                # If this looks like a compilation error, capture it
+                # Try to get the full context (may span multiple lines)
+                error_context = line_stripped
+                
+                # Look for file:line pattern in current or previous lines
+                for j in range(max(0, i-2), min(len(lines), i+3)):
+                    if re.search(r'\.java:\d+:', lines[j]):
+                        file_line_context = lines[j].strip()
+                        if file_line_context != error_context:
+                            error_context = file_line_context + " " + error_context
+                        break
+                
+                # Only add if it's not already present and contains actual error info
+                if (error_context and 
+                    error_context not in compilation_errors and 
+                    len(error_context) > 10 and  # Must be substantial
+                    any(keyword in error_context.lower() for keyword in ['error:', 'cannot', 'symbol', 'constructor'])):
+                    compilation_errors.append(error_context)
+                break
+    
+    # Pattern 3: Look for "error:" keyword specifically (common in Java compilation output)
+    general_compile_errors = re.findall(r'(.*?\.java:\d+:.*?error:.*?)(?=\n|\r\n|\r|$)', output, re.IGNORECASE)
+    for error in general_compile_errors:
+        if error.strip() and error.strip() not in compilation_errors:
+            compilation_errors.append(error.strip())
+    
+    # Pattern 4: Gradle-specific compilation failure patterns
+    # Look for "Compilation failed" or similar messages
+    if re.search(r'compilation failed|COMPILATION ERROR|BUILD FAILED.*compilation', output, re.IGNORECASE):
+        # If we don't have specific errors but know compilation failed
+        if not compilation_errors:
+            # Try to extract more specific error information
+            gradle_error_block = re.search(r'(.*(?:compilation failed|COMPILATION ERROR).*?)(?=\n\w|\Z)', output, re.DOTALL | re.IGNORECASE)
+            if gradle_error_block:
+                compilation_errors.append(gradle_error_block.group(1).strip())
+    
+    # Now handle test failures (only if they're not compilation errors)
+    # Extract individual test failures from Gradle output
+    # Gradle test failure format: org.example.TestClass > testMethod FAILED
+    test_failure_pattern = r'([A-Za-z0-9_.]+)\s*>\s*([A-Za-z0-9_]+)\s+FAILED'
+    test_failures = re.findall(test_failure_pattern, output)
+    
+    for test_class, test_method in test_failures:
+        # Look for the specific error message for this test
+        # Gradle usually shows the error after the FAILED line
+        error_pattern = rf'{re.escape(test_class)}\s*>\s*{re.escape(test_method)}\s+FAILED\s*\n\s*(.*?)(?=\n\s*[A-Za-z]|\n\s*$|\Z)'
+        error_match = re.search(error_pattern, output, re.DOTALL)
+        if error_match:
+            error_msg = error_match.group(1).strip()
+            # Check if this is actually a compilation error disguised as test failure
+            if any(re.search(indicator, error_msg, re.IGNORECASE) for indicator in compilation_indicators):
+                compilation_errors.append(f"{test_class}.{test_method} - {error_msg}")
+            else:
+                formatted_error = f"{test_class}.{test_method} {error_msg}"
+                assertion_failures.append(formatted_error)
+        else:
+            formatted_error = f"{test_class}.{test_method} FAILED"
+            assertion_failures.append(formatted_error)
+    
+    # Also look for JUnit-style test failures in Gradle output (but check for compilation errors first)
+    junit_failure_pattern = r'([A-Za-z0-9_.]+)\.([A-Za-z0-9_]+)(?::(\d+))?\s+(.*?)(?=\n\s*[A-Za-z]|\n\s*$|\Z)'
+    junit_failures = re.findall(junit_failure_pattern, output)
+    
+    for test_class, test_method, line_number, error_msg in junit_failures:
+        error_msg_stripped = error_msg.strip()
+        
+        # Skip obvious non-test failure patterns
+        if (not error_msg_stripped or 
+            'help.gradle.org' in error_msg_stripped or
+            'uses or overrides a deprecated API' in error_msg_stripped or
+            len(error_msg_stripped) < 5):
+            continue
+            
+        # Check if this is actually a compilation error
+        if any(re.search(indicator, error_msg_stripped, re.IGNORECASE) for indicator in compilation_indicators):
+            if line_number:
+                compilation_errors.append(f"{test_class}.{test_method}:{line_number} {error_msg_stripped}")
+            else:
+                compilation_errors.append(f"{test_class}.{test_method} {error_msg_stripped}")
+        else:
+            # Only treat as test failure if it looks like a real test failure
+            if ('expected' in error_msg_stripped.lower() or 
+                'assertion' in error_msg_stripped.lower() or
+                'failed' in error_msg_stripped.lower()):
+                if line_number:
+                    formatted_error = f"{test_class}.{test_method}:{line_number} {error_msg_stripped}"
+                else:
+                    formatted_error = f"{test_class}.{test_method} {error_msg_stripped}"
+                
+                # Avoid duplicates
+                if formatted_error not in assertion_failures:
+                    assertion_failures.append(formatted_error)
+    
+    # Check for build failure
+    if "BUILD FAILED" in output and not (compilation_errors or assertion_failures):
+        compilation_errors.append("BUILD FAILED - check build output for details")
+    
+    return compilation_errors, assertion_failures
+
+def find_jacoco_report(project_dir, project_type='maven'):
     """
     Find Jacoco-generated XML report file
     
     Parameters:
     project_dir (str): Project directory
+    project_type (str): Project type ('maven' or 'gradle')
     
     Returns:
     str: Report file path
     """
-    # Common Jacoco report paths
-    patterns = [
-        os.path.join(project_dir, 'target', 'site', 'jacoco', 'jacoco.xml'),
-        os.path.join(project_dir, 'target', 'site', 'jacoco-ut', 'jacoco.xml'),
-        os.path.join(project_dir, 'target', 'site', 'jacoco-aggregate', 'jacoco.xml'),
-        os.path.join(project_dir, 'build', 'reports', 'jacoco', 'test', 'jacocoTestReport.xml'),
-        os.path.join(project_dir, 'target', 'jacoco.xml'),
-        os.path.join(project_dir, 'target', 'jacoco', 'jacoco.xml')
-    ]
+    # Common Jacoco report paths based on project type
+    if project_type.lower() == 'gradle':
+        patterns = [
+            os.path.join(project_dir, 'build', 'reports', 'jacoco', 'test', 'jacocoTestReport.xml'),
+            os.path.join(project_dir, 'build', 'reports', 'jacoco', 'jacocoTestReport.xml'),
+            os.path.join(project_dir, 'build', 'jacoco', 'test.xml'),
+            os.path.join(project_dir, 'build', 'jacoco', 'jacoco.xml'),
+            # Multi-module Gradle projects
+            os.path.join(project_dir, 'build', 'reports', 'jacoco', 'jacocoRootReport', 'jacocoRootReport.xml'),
+        ]
+    else:
+        patterns = [
+            os.path.join(project_dir, 'target', 'site', 'jacoco', 'jacoco.xml'),
+            os.path.join(project_dir, 'target', 'site', 'jacoco-ut', 'jacoco.xml'),
+            os.path.join(project_dir, 'target', 'site', 'jacoco-aggregate', 'jacoco.xml'),
+            os.path.join(project_dir, 'target', 'jacoco.xml'),
+            os.path.join(project_dir, 'target', 'jacoco', 'jacoco.xml')
+        ]
     
     # Log search process
-    logger.info("Searching for Jacoco report file...")
+    logger.info(f"Searching for Jacoco report file for {project_type} project...")
     for pattern in patterns:
         logger.debug(f"Checking path: {pattern}")
         if os.path.exists(pattern):
             logger.info(f"Found Jacoco report: {pattern}")
             return pattern
     
-    # Use glob for wider search
+    # Use glob for wider search based on project type
     logger.info("Using glob to search for Jacoco report...")
-    xml_files = glob.glob(os.path.join(project_dir, 'target', 'site', '**', 'jacoco*.xml'), recursive=True)
+    if project_type.lower() == 'gradle':
+        xml_files = glob.glob(os.path.join(project_dir, 'build', 'reports', '**', 'jacoco*.xml'), recursive=True)
+        if not xml_files:
+            xml_files = glob.glob(os.path.join(project_dir, 'build', '**', 'jacoco*.xml'), recursive=True)
+    else:
+        xml_files = glob.glob(os.path.join(project_dir, 'target', 'site', '**', 'jacoco*.xml'), recursive=True)
+        if not xml_files:
+            xml_files = glob.glob(os.path.join(project_dir, 'target', '**', 'jacoco*.xml'), recursive=True)
+    
     if xml_files:
         logger.info(f"Found possible Jacoco report: {xml_files[0]}")
         return xml_files[0]
-    
-    # If still not found, try running specific Jacoco command
-    # logger.info("Trying to directly run Jacoco to generate report...")
-    # _, _, _ = run_maven_command('clean test', project_dir)
-    # success, _, _ = run_maven_command('jacoco:report', project_dir)
-    # if success:
-    #     # Search again for the report
-    #     for pattern in patterns:
-    #         if os.path.exists(pattern):
-    #             logger.info(f"Generated and found Jacoco report: {pattern}")
-    #             return pattern
     
     logger.error("No Jacoco report file found")
     return None
@@ -1209,10 +1479,10 @@ def format_feedback_for_prompt(coverage_data, errors, class_name, package_name, 
     return "\n".join(feedback)
 
 
-def run_tests_with_jacoco(project_dir, class_name=None, package_name=None, test_class=None, skip_coverage=False):
+def run_tests_with_jacoco(project_dir, class_name=None, package_name=None, test_class=None, skip_coverage=False, project_type='maven'):
     """
-    Run Maven tests and get Jacoco coverage report and test error information
-    with improved error parsing
+    Run tests and get Jacoco coverage report and test error information
+    with improved error parsing for both Maven and Gradle projects
     
     Parameters:
     project_dir (str): Project directory
@@ -1220,34 +1490,54 @@ def run_tests_with_jacoco(project_dir, class_name=None, package_name=None, test_
     package_name (str): Package name of the class
     test_class (str): Specified test class to run
     skip_coverage (bool): Skip coverage generation for faster test execution
+    project_type (str): Project type ('maven' or 'gradle')
     
     Returns:
     tuple: (coverage_data, assertion_failures, execution_time, compilation_errors)
     """
-    # Build Maven command
-    maven_command = 'clean test'
+    # Build command based on project type
+    if project_type.lower() == 'gradle':
+        # Gradle commands
+        if test_class:
+            # For Gradle, use --tests option to run specific test class
+            base_command = f'clean test --tests {test_class}'
+        else:
+            base_command = 'clean test'
+        
+        if not skip_coverage:
+            base_command += ' jacocoTestReport'
+    else:
+        # Maven commands
+        base_command = 'clean test'
+        
+        # Only add jacoco:report if we're not skipping coverage
+        if not skip_coverage:
+            base_command += ' jacoco:report'
+        
+        # If specified test class, only run that test class
+        if test_class:
+            base_command = f'clean test -Dtest={test_class}'
     
-    # Only add jacoco:report if we're not skipping coverage
+    # Run tests and generate coverage report
+    logger.info(f"Running {project_type} tests{' and generating Jacoco report' if not skip_coverage else ''}...")
+    success, stdout, stderr = run_build_command(base_command, project_dir, project_type)
+    
+    # Generate coverage report separately if needed
     if not skip_coverage:
-        maven_command += ' jacoco:report'
-    
-    # If specified test class, only run that test class
-    if test_class:
-        maven_command = f'clean test -Dtest={test_class}'
-        # if not skip_coverage:
-        #     maven_command += ' jacoco:report'
-    
-    # Run Maven tests and generate Jacoco report
-    logger.info(f"Running tests{' and generating Jacoco report' if not skip_coverage else ''}...")
-    success, stdout, stderr = run_maven_command(maven_command, project_dir)
-    run_maven_command('jacoco:report', project_dir)
+        if project_type.lower() == 'gradle':
+            run_build_command('jacocoTestReport', project_dir, project_type)
+        else:
+            run_build_command('jacoco:report', project_dir, project_type)
     
     
     # Combine standard output and error output
     combined_output = stdout + "\n" + stderr
     
-    # Parse Maven errors with improved function
-    compilation_errors, assertion_failures = parse_maven_errors(combined_output)
+    # Parse errors based on project type
+    if project_type.lower() == 'gradle':
+        compilation_errors, assertion_failures = parse_gradle_errors(combined_output)
+    else:
+        compilation_errors, assertion_failures = parse_maven_errors(combined_output)
     
     # Log errors appropriately
     if compilation_errors:
@@ -1264,10 +1554,10 @@ def run_tests_with_jacoco(project_dir, class_name=None, package_name=None, test_
         if len(assertion_failures) > 5:
             logger.warning(f"...and {len(assertion_failures) - 5} more assertion failures")
     
-    xml_report = find_jacoco_report(project_dir)
+    xml_report = find_jacoco_report(project_dir, project_type)
     
     if not xml_report:
-        logger.error("No Jacoco XML report found, please confirm that the project has the Jacoco plugin configured")
+        logger.error(f"No Jacoco XML report found for {project_type} project, please confirm that the project has the Jacoco plugin configured")
         # Return tuples that match expected return values: (coverage_data, assertion_failures, execution_time, compilation_errors)
         return None, assertion_failures, 0.0, compilation_errors
 
@@ -1282,7 +1572,7 @@ def run_tests_with_jacoco(project_dir, class_name=None, package_name=None, test_
     #     logger.warning("Trying to force generate Jacoco report...")
     #     run_maven_command('jacoco:report', project_dir)
     #     xml_report = find_jacoco_report(project_dir)
-        
+    #     
     #     if not xml_report:
     #         logger.error("No Jacoco XML report found, please confirm that the project has the Jacoco plugin configured")
     #         # Return tuples that match expected return values: (coverage_data, assertion_failures, execution_time, compilation_errors)
@@ -1451,7 +1741,7 @@ def strip_java_comments(source_code):
     return cleaned_source.strip()
 
 
-def apply_rule_based_repairs(test_code, errors, class_name, package_name, project_dir):
+def apply_rule_based_repairs(test_code, errors, class_name, package_name, project_dir, project_type='maven'):
     """
     Apply rule-based repair strategies to fix errors in the test code,
     attempting to resolve common issues before invoking a large model.
@@ -1462,6 +1752,7 @@ def apply_rule_based_repairs(test_code, errors, class_name, package_name, projec
     class_name (str): The class name
     package_name (str): The package name
     project_dir (str): The project directory
+    project_type (str): Project type ('maven' or 'gradle')
     
     Returns:
     tuple: (repaired code, whether it was fixed, remaining errors)
@@ -1574,7 +1865,8 @@ def apply_rule_based_repairs(test_code, errors, class_name, package_name, projec
                 "import org.junit.jupiter.api.Assertions;",
                 "import static org.junit.jupiter.api.Assertions.*;",
                 "import org.junit.jupiter.api.BeforeEach;",
-                "import org.junit.jupiter.api.AfterEach;"
+                "import org.junit.jupiter.api.AfterEach;",
+                "import org.junit.jupiter.api.Disabled;"
             ]
             
             # Check if the test code already contains a package declaration
@@ -1591,45 +1883,26 @@ def apply_rule_based_repairs(test_code, errors, class_name, package_name, projec
             fixed = True
             logger.info("Added JUnit 5 import statements")
     
-    # Rule 4: Fix Mockito-related issues
+    # Rule 4: Handle Mockito-related issues by removing mock usage
     if any("org.mockito" in err for err in errors) or any("mock" in err.lower() for err in errors):
-        logger.info("Attempting to fix Mockito-related issues")
+        logger.info("Detected Mockito-related issues - removing mock usage")
         
-        # Add Mockito imports
-        if "import org.mockito" not in test_code:
-            mockito_imports = [
-                "import org.mockito.Mockito;",
-                "import static org.mockito.Mockito.*;",
-                "import org.mockito.Mock;",
-                "import org.mockito.InjectMocks;",
-                "import org.mockito.junit.jupiter.MockitoExtension;",
-                "import org.junit.jupiter.api.extension.ExtendWith;"
-            ]
-            
-            # Check if the test code already contains a package declaration
-            if "package " in test_code:
-                # Add import statements after the package declaration
-                package_end = test_code.find(';', test_code.find("package ")) + 1
-                mockito_imports_text = '\n'.join(mockito_imports)
-                test_code = test_code[:package_end] + '\n\n' + mockito_imports_text + test_code[package_end:]
-            else:
-                # Add package declaration and import statements at the beginning of the code
-                mockito_imports_text = "package " + package_name + ";\n\n" + '\n'.join(mockito_imports)
-                test_code = mockito_imports_text + '\n\n' + test_code
-            
-            # Check if the test class has already added MockitoExtension
-            if "@ExtendWith" not in test_code and "class " in test_code:
-                class_start = test_code.find("class ")
-                class_end = test_code.find("{", class_start)
-                
-                if class_start != -1 and class_end != -1:
-                    extension_annotation = "@ExtendWith(MockitoExtension.class)\n"
-                    test_code = test_code[:class_start] + extension_annotation + test_code[class_start:]
-                    fixed = True
-                    logger.info("Added Mockito extension annotation")
-            
-            fixed = True
-            logger.info("Added Mockito import statements")
+        # Remove mockito imports
+        mockito_patterns = [
+            r'import org\.mockito\..*?;',
+            r'import static org\.mockito\..*?;',
+            r'@ExtendWith\(MockitoExtension\.class\)',
+            r'@Mock\s+',
+            r'@MockBean\s+',
+            r'@InjectMocks\s+'
+        ]
+        
+        for pattern in mockito_patterns:
+            test_code = re.sub(pattern, '', test_code, flags=re.MULTILINE)
+        
+        # Log that we cleaned mockito usage
+        logger.info("Removed Mockito imports and annotations - tests should use real objects instead")
+        fixed = True
     
     # Check if the repair was successful
     if fixed and test_code != original_test_code:
@@ -1641,7 +1914,7 @@ def apply_rule_based_repairs(test_code, errors, class_name, package_name, projec
             test_class = f"{package_name}.{test_class_name}"
             
             # Run the tests and check for errors
-            coverage_data, new_errors, execution_time, _ = run_tests_with_jacoco(project_dir, class_name, package_name, test_class)
+            coverage_data, new_errors, execution_time, _ = run_tests_with_jacoco(project_dir, class_name, package_name, test_class, False, project_type)
             
             if not new_errors or len(new_errors) < len(errors):
                 logger.info("Rule-based repair successfully reduced the number of errors")
@@ -1651,7 +1924,7 @@ def apply_rule_based_repairs(test_code, errors, class_name, package_name, projec
     return test_code, fixed, remaining_errors
 
 
-def improve_test_coverage(project_dir, prompt_dir, test_prompt_file, class_name, package_name, test_code, source_code, max_attempts=20, target_coverage=95.0):
+def improve_test_coverage(project_dir, prompt_dir, test_prompt_file, class_name, package_name, test_code, source_code, max_attempts=20, target_coverage=95.0, project_type='maven'):
     """
     Iteratively optimize test coverage while tracking the best results.
     """
@@ -1688,7 +1961,7 @@ def improve_test_coverage(project_dir, prompt_dir, test_prompt_file, class_name,
             test_class = f"{package_name}.{test_class_name}"
 
             # Run tests and obtain coverage data
-            coverage_data, assertion_failures, execution_time, errors = run_tests_with_jacoco(project_dir, class_name, package_name, test_class)
+            coverage_data, assertion_failures, execution_time, errors = run_tests_with_jacoco(project_dir, class_name, package_name, test_class, False, project_type)
 
             # Check for errors
             has_errors = bool(errors)
@@ -1710,7 +1983,7 @@ def improve_test_coverage(project_dir, prompt_dir, test_prompt_file, class_name,
             if has_errors:
                 logger.info("Test has errors, attempting rule-based fixes")
                 repaired_code, fixed, remaining_errors = apply_rule_based_repairs(
-                    test_code, errors, class_name, package_name, project_dir
+                    test_code, errors, class_name, package_name, project_dir, project_type
                 )
 
                 if fixed:
@@ -1722,7 +1995,7 @@ def improve_test_coverage(project_dir, prompt_dir, test_prompt_file, class_name,
                     test_file_path = save_test_code(test_code, class_name, package_name, project_dir)
                     if test_file_path:
                         # Rerun tests
-                        coverage_data, assertion_failures, execution_time, errors = run_tests_with_jacoco(project_dir, class_name, package_name, test_class)
+                        coverage_data, assertion_failures, execution_time, errors = run_tests_with_jacoco(project_dir, class_name, package_name, test_class, False, project_type)
 
                         # Update status
                         has_errors = bool(errors)
@@ -1772,13 +2045,22 @@ def improve_test_coverage(project_dir, prompt_dir, test_prompt_file, class_name,
                 return ""
 
             improve_prompt = f"""
-            CRITICAL: I need the ENTIRE test class including ALL original methods, not just the fixed parts.
+CRITICAL ANTI-PLACEHOLDER REQUIREMENTS:
+I need the ENTIRE test class including ALL original methods, not just the fixed parts.
 Your response must contain:
 1. All package declarations
 2. All import statements 
 3. The complete class definition
 4. ALL existing test methods, not just the fixed ones
 5. All fields and setup methods
+
+ABSOLUTELY FORBIDDEN:
+- DO NOT use "// ... existing code ..."
+- DO NOT use "// [Previous imports remain exactly the same]"
+- DO NOT use "// All previous fields and methods remain exactly the same"
+- DO NOT use ANY placeholders or shortcuts
+- You MUST write out every single line of the existing code
+- No abbreviations or comments indicating omitted code
 
 Format your entire response as a SINGLE complete Java file that I can save and run directly.
 ===============================
@@ -1881,9 +2163,9 @@ def generate_test_summary(project_dir, class_name, package_name, coverage,
                 logger.warning(f"Failed to load logic metrics: {str(e)}")
         
         # 从逻辑指标中获取bug信息
-        logical_bugs_found = logic_metrics.get("total_logical_bug_tests", 0)
-        logical_bug_types = logic_metrics.get("logical_bug_types_found", [])
-        bugs_found_iteration = logic_metrics.get("iterations_to_first_logical_bug")
+        bugs_found = logic_metrics.get("total_bug_tests", 0)
+        bug_types = logic_metrics.get("bug_types_found", [])
+        bugs_found_iteration = logic_metrics.get("iterations_to_first_bug")
         
         # Create summary data
         summary = {
@@ -1894,8 +2176,8 @@ def generate_test_summary(project_dir, class_name, package_name, coverage,
             "iterations": iterations,
             "status": status,
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "logical_bugs_found": logical_bugs_found,
-            "logical_bug_types": logical_bug_types,
+            "bugs_found": bugs_found,
+            "bug_types": bug_types,
             "bugs_found_iteration": bugs_found_iteration,
             "history": history
         }
@@ -2042,7 +2324,7 @@ def create_consolidated_report(project_dir, results):
         logger.error(f"Failed to create consolidated report: {str(e)}")
         return None
 
-def process_class(project_dir, prompt_dir, class_name, package_name, max_attempts=20, target_coverage=100.0):
+def process_class(project_dir, prompt_dir, class_name, package_name, max_attempts=20, target_coverage=100.0, project_type='maven'):
     """
     Process single class test generation and optimization
     
@@ -2053,6 +2335,7 @@ def process_class(project_dir, prompt_dir, class_name, package_name, max_attempt
     package_name (str): Package name
     max_attempts (int): Maximum attempt count
     target_coverage (float): Target coverage percentage
+    project_type (str): Project type ('maven' or 'gradle')
     
     Returns:
     tuple: (success, coverage, has_errors, test_code)
@@ -2089,7 +2372,7 @@ def process_class(project_dir, prompt_dir, class_name, package_name, max_attempt
     # 4. Iteratively optimize test coverage
     logger.info("Starting iterative test code optimization")
     best_test, best_coverage, has_errors, attempts = improve_test_coverage(
-        project_dir, prompt_dir, test_prompt_file, class_name, package_name, initial_test, source_code, max_attempts, target_coverage)
+        project_dir, prompt_dir, test_prompt_file, class_name, package_name, initial_test, source_code, max_attempts, target_coverage, project_type)
     
     # 5. Final test save (already done in improve_test_coverage)
     
@@ -2106,7 +2389,7 @@ def process_class(project_dir, prompt_dir, class_name, package_name, max_attempt
     
     return True, best_coverage, has_errors, best_test
 
-def batch_process_classes(project_dir, prompt_dir, output_file=None, max_attempts=20, target_coverage=100.0):
+def batch_process_classes(project_dir, prompt_dir, output_file=None, max_attempts=20, target_coverage=100.0, project_type='maven'):
     """
     Batch process all classes in directory, tracking best tests
     
@@ -2116,6 +2399,7 @@ def batch_process_classes(project_dir, prompt_dir, output_file=None, max_attempt
     output_file (str): Output result file
     max_attempts (int): Maximum attempt count
     target_coverage (float): Target coverage percentage
+    project_type (str): Project type ('maven' or 'gradle')
     
     Returns:
     list: Processing result list
@@ -2150,7 +2434,7 @@ def batch_process_classes(project_dir, prompt_dir, output_file=None, max_attempt
         
         try:
             success, coverage, has_errors, test_code = process_class(
-                project_dir, prompt_dir, class_name, package_name, max_attempts, target_coverage)
+                project_dir, prompt_dir, class_name, package_name, max_attempts, target_coverage, project_type)
             
             if success and not has_errors and coverage >= target_coverage:
                 success_count += 1
@@ -2240,6 +2524,24 @@ def extract_package_from_file(file_path):
         pass
     return None
 
+def detect_project_type(project_dir):
+    """
+    Detect project type based on build files
+    
+    Parameters:
+    project_dir (str): Project directory
+    
+    Returns:
+    str: Project type ('maven', 'gradle', or 'unknown')
+    """
+    if os.path.exists(os.path.join(project_dir, "pom.xml")):
+        return "maven"
+    elif (os.path.exists(os.path.join(project_dir, "build.gradle")) or 
+          os.path.exists(os.path.join(project_dir, "build.gradle.kts"))):
+        return "gradle"
+    else:
+        return "unknown"
+
 def check_pom_for_jacoco(project_dir):
     """
     Check if project's pom.xml file includes Jacoco plugin
@@ -2270,6 +2572,180 @@ def check_pom_for_jacoco(project_dir):
         logger.error(f"Failed to read pom.xml file: {str(e)}")
         return False
 
+def check_gradle_for_jacoco(project_dir):
+    """
+    Check if Gradle project includes Jacoco plugin
+    
+    Parameters:
+    project_dir (str): Project directory
+    
+    Returns:
+    bool: Whether Jacoco plugin is found
+    """
+    gradle_files = [
+        os.path.join(project_dir, "build.gradle"),
+        os.path.join(project_dir, "build.gradle.kts")
+    ]
+    
+    for gradle_file in gradle_files:
+        if os.path.exists(gradle_file):
+            try:
+                with open(gradle_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    
+                # Check if includes jacoco plugin
+                if ('jacoco' in content.lower() and 
+                    ('plugin' in content.lower() or 'apply plugin' in content.lower())):
+                    logger.info(f"Found Jacoco plugin configuration in {gradle_file}")
+                    return True
+            except Exception as e:
+                logger.error(f"Failed to read {gradle_file}: {str(e)}")
+                continue
+    
+    logger.warning("Jacoco plugin configuration not found in Gradle build files")
+    return False
+
+def check_build_for_jacoco(project_dir, project_type):
+    """
+    Check if project includes Jacoco plugin based on project type
+    
+    Parameters:
+    project_dir (str): Project directory
+    project_type (str): Project type ('maven' or 'gradle')
+    
+    Returns:
+    bool: Whether Jacoco plugin is found
+    """
+    if project_type.lower() == 'gradle':
+        return check_gradle_for_jacoco(project_dir)
+    else:
+        return check_pom_for_jacoco(project_dir)
+
+def add_jacoco_to_gradle(project_dir):
+    """
+    Add Jacoco plugin configuration to Gradle build file
+    
+    Parameters:
+    project_dir (str): Project directory
+    
+    Returns:
+    bool: Whether successfully added
+    """
+    build_gradle = os.path.join(project_dir, "build.gradle")
+    build_gradle_kts = os.path.join(project_dir, "build.gradle.kts")
+    
+    # Determine which build file to use
+    build_file = None
+    if os.path.exists(build_gradle):
+        build_file = build_gradle
+        is_kotlin_dsl = False
+    elif os.path.exists(build_gradle_kts):
+        build_file = build_gradle_kts
+        is_kotlin_dsl = True
+    else:
+        logger.error("No Gradle build file found (build.gradle or build.gradle.kts)")
+        return False
+    
+    try:
+        with open(build_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Check if Jacoco plugin is already configured
+        if 'jacoco' in content.lower():
+            logger.info("Gradle build file already includes Jacoco plugin configuration")
+            return True
+        
+        # Add Jacoco plugin configuration
+        if is_kotlin_dsl:
+            # For Kotlin DSL, add jacoco to existing plugins block
+            if 'plugins {' in content:
+                # Find existing plugins block and add jacoco
+                plugins_pattern = r'(plugins\s*\{[^}]*\})'
+                plugins_match = re.search(plugins_pattern, content, re.DOTALL)
+                if plugins_match:
+                    existing_plugins = plugins_match.group(1)
+                    # Add jacoco to existing plugins block
+                    if 'jacoco' not in existing_plugins:
+                        # Insert jacoco before the closing brace
+                        new_plugins = existing_plugins.rstrip()[:-1] + '\n    jacoco\n}'
+                        content = content.replace(existing_plugins, new_plugins)
+                else:
+                    # No plugins block found, add one
+                    content = 'plugins {\n    jacoco\n}\n\n' + content
+            else:
+                # No plugins block found, add one
+                content = 'plugins {\n    jacoco\n}\n\n' + content
+            
+            # Add jacoco configuration
+            jacoco_config = '''
+jacoco {
+    toolVersion = "0.8.8"
+}
+
+tasks.jacocoTestReport {
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
+tasks.test {
+    useJUnitPlatform()
+    finalizedBy(tasks.jacocoTestReport)
+}
+'''
+        else:
+            # For Groovy DSL, add jacoco to existing plugins block
+            if 'plugins {' in content:
+                # Find existing plugins block and add jacoco
+                plugins_pattern = r'(plugins\s*\{[^}]*\})'
+                plugins_match = re.search(plugins_pattern, content, re.DOTALL)
+                if plugins_match:
+                    existing_plugins = plugins_match.group(1)
+                    # Add jacoco to existing plugins block
+                    if 'jacoco' not in existing_plugins:
+                        # Insert jacoco before the closing brace
+                        new_plugins = existing_plugins.rstrip()[:-1] + '\n    id "jacoco"\n}'
+                        content = content.replace(existing_plugins, new_plugins)
+                else:
+                    # No plugins block found, add one
+                    content = 'plugins {\n    id "jacoco"\n}\n\n' + content
+            else:
+                # No plugins block found, add one
+                content = 'plugins {\n    id "jacoco"\n}\n\n' + content
+            
+            # Add jacoco configuration
+            jacoco_config = '''
+jacoco {
+    toolVersion = "0.8.8"
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled true
+        html.enabled true
+    }
+}
+
+test {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+'''
+        
+        # Add jacoco configuration after plugins block
+        new_content = content + jacoco_config
+        
+        with open(build_file, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        
+        logger.info(f"Successfully added Jacoco plugin configuration to {build_file}")
+        return True
+    
+    except Exception as e:
+        logger.error(f"Failed to modify {build_file}: {str(e)}")
+        return False
+
 def add_jacoco_to_pom(project_dir):
     """
     Add Jacoco plugin configuration to pom.xml file
@@ -2280,6 +2756,8 @@ def add_jacoco_to_pom(project_dir):
     Returns:
     bool: Whether successfully added
     """
+    import os
+    import re
     pom_file = os.path.join(project_dir, "pom.xml")
     if not os.path.exists(pom_file):
         logger.error("pom.xml file not found, cannot add Jacoco configuration")
@@ -2294,13 +2772,41 @@ def add_jacoco_to_pom(project_dir):
             logger.info("pom.xml already includes Jacoco plugin configuration, no need to add")
             return True
         
-        # Find build tag
-        build_end_match = re.search(r'</build>', content)
-        if not build_end_match:
-            logger.error("Could not find </build> tag in pom.xml, cannot add Jacoco configuration")
+        dependencies_match = re.search(r'(<dependencies>)(.*?)(</dependencies>)', content, re.DOTALL)
+        if not dependencies_match:
+            logger.error("Could not find <dependencies> tag in pom.xml, cannot add Jacoco configuration")
+            return False
+      
+        dependencies_content = """
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.9.3</version>
+            <scope>test</scope>
+        </dependency>
+        """
+        new_content = content.replace(dependencies_match.group(0), '<dependencies>' + dependencies_content + '</dependencies>')
+        if not new_content:
+            logger.error("Failed to modify pom.xml file, cannot add Jacoco configuration")
+            return False
+        with open(pom_file, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        logger.info("Successfully added Jacoco dependencies to pom.xml")
+        
+        
+        # Find <build> ... </build> block
+        build_match = re.search(r'<build>(.*?)</build>', content, re.DOTALL)
+        if not build_match:
+            logger.error("Could not find <build> tag in pom.xml, cannot add Jacoco configuration")
+            return False
+        build_content = build_match.group(1)
+        
+        # Find <plugins> ... </plugins> inside <build>
+        plugins_match = re.search(r'(<plugins>)(.*?)(</plugins>)', build_content, re.DOTALL)
+        if not plugins_match:
+            logger.error("Could not find <plugins> tag inside <build> in pom.xml, cannot add Jacoco configuration")
             return False
         
-        # Build Jacoco plugin configuration
         jacoco_config = """
         <plugin>
             <groupId>org.jacoco</groupId>
@@ -2321,13 +2827,20 @@ def add_jacoco_to_pom(project_dir):
                 </execution>
             </executions>
         </plugin>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <version>3.0.0-M9</version>
+            <configuration>
+                <useModulePath>false</useModulePath>
+            </configuration>
+        </plugin>
         """
+        # Insert Jacoco config before </plugins>
+        new_plugins = plugins_match.group(1) + plugins_match.group(2) + jacoco_config + plugins_match.group(3)
+        new_build_content = build_content.replace(plugins_match.group(0), new_plugins)
+        new_content = content.replace(build_match.group(0), '<build>' + new_build_content + '</build>')
         
-        # Add Jacoco configuration before build tag ends
-        pos = build_end_match.start()
-        new_content = content[:pos] + jacoco_config + content[pos:]
-        
-        # Save modified pom.xml
         with open(pom_file, 'w', encoding='utf-8') as f:
             f.write(new_content)
         
@@ -2337,6 +2850,22 @@ def add_jacoco_to_pom(project_dir):
     except Exception as e:
         logger.error(f"Failed to modify pom.xml file: {str(e)}")
         return False
+
+def add_jacoco_to_build(project_dir, project_type):
+    """
+    Add Jacoco plugin configuration to build file based on project type
+    
+    Parameters:
+    project_dir (str): Project directory
+    project_type (str): Project type ('maven' or 'gradle')
+    
+    Returns:
+    bool: Whether successfully added
+    """
+    if project_type.lower() == 'gradle':
+        return add_jacoco_to_gradle(project_dir)
+    else:
+        return add_jacoco_to_pom(project_dir)
 
 def log_detailed_metrics(output_file=None):
     """
@@ -2461,6 +2990,7 @@ def main():
     parser.add_argument('--api-base', help='OpenAI API base URL')
     parser.add_argument('--model', default=DEFAULT_MODEL, help='Model to use')
     parser.add_argument('--check-jacoco', action='store_true', help='Check and add Jacoco configuration')
+    parser.add_argument('--project-type', choices=['maven', 'gradle'], help='Project type (maven or gradle). If not specified, will auto-detect.')
     # parser.add_argument('--best-dir', help='Directory to save best test results', default='best_tests')
     
     args = parser.parse_args()
@@ -2489,11 +3019,22 @@ def main():
     if not os.path.exists(args.prompt):
         parser.error(f"Prompt directory does not exist: {args.prompt}")
     
+    # Detect or use specified project type
+    if args.project_type:
+        project_type = args.project_type
+    else:
+        project_type = detect_project_type(args.project)
+        if project_type == 'unknown':
+            logger.warning("Could not detect project type. Defaulting to Maven.")
+            project_type = 'maven'
+        else:
+            logger.info(f"Auto-detected project type: {project_type}")
+    
     # Check and add Jacoco configuration
     if args.check_jacoco:
-        if not check_pom_for_jacoco(args.project):
-            logger.info("Trying to add Jacoco plugin to pom.xml...")
-            add_jacoco_to_pom(args.project)
+        if not check_build_for_jacoco(args.project, project_type):
+            logger.info(f"Trying to add Jacoco plugin to {project_type} build file...")
+            add_jacoco_to_build(args.project, project_type)
     
     # Create directory for best tests
     # best_dir = args.best_dir
@@ -2508,7 +3049,8 @@ def main():
             args.prompt, 
             args.output, 
             args.max_attempts, 
-            args.target_coverage
+            args.target_coverage,
+            project_type
         )
         
         # Generate consolidated report

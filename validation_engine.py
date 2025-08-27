@@ -13,7 +13,7 @@ from typing import Dict, Any
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("logic_validation_engine")
 
-class LogicValidationEngine:
+class ValidationEngine:
     """
     Validates LLM analysis against static analysis to improve accuracy
     """

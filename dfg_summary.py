@@ -101,11 +101,11 @@ def main():
     project_name = "calculator"
     input_file = f"/home/ricky/Desktop/unit_test/java_unit_test/output/calculator/analysis/calculator/calculator_dfg.json"
     
-    # Read JSON file
+    # 读取JSON文件
     with open(input_file, 'r') as f:
         data = json.load(f)
     
-    # Assume JSON file contains information for multiple classes, iterate through each class
+    # 假设JSON文件包含多个类的信息，我们遍历每个类
     for file_path, file_info in data.items():
         for class_info in file_info.get("classes", []):
             summary = summarize_data_flow(class_info)

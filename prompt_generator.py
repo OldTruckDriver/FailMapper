@@ -85,6 +85,63 @@ def summarize_data_flow(class_info):
 
     return summary
 
+# -------- 新增：依赖API解析与注入 --------
+
+def _build_simple_to_fqn_map(testable_units):
+    simple_to_fqns = {}
+    for fqn, info in testable_units.items():
+        name = info.get('class_name') or fqn.split('.')[-1]
+        simple_to_fqns.setdefault(name, []).append(fqn)
+    return simple_to_fqns
+
+def _resolve_dep_fqns(import_types, package, testable_units, indirect_deps_for_class):
+    """将类型名解析为FQN，优先：
+    1) 已是FQN且存在于testable_units
+    2) simpleName与indirect_deps匹配
+    3) simpleName在testable_units唯一匹配
+    多个候选则全部保留（由LLM在上下文中参考，不做臆造）。
+    """
+    resolved = set()
+    simple_to_fqns = _build_simple_to_fqn_map(testable_units)
+
+    for t in import_types:
+        if not t or t in {"void", "boolean", "int", "long", "float", "double", "char", "byte", "short"}:
+            continue
+        if '.' in t and t in testable_units:
+            resolved.add(t)
+            continue
+        # simple name 解析
+        candidates = simple_to_fqns.get(t, [])
+        if indirect_deps_for_class:
+            # 与间接依赖交集优先
+            matched = [c for c in candidates if c in indirect_deps_for_class]
+            if matched:
+                resolved.update(matched)
+                continue
+        if candidates:
+            resolved.update(candidates)
+    return list(resolved)
+
+def _summarize_dep_api(fqn, info):
+    summary = {
+        "name": fqn,
+        "package": info.get('package'),
+        "type": info.get('type'),
+        "superclass": info.get('superclass') or (info.get('extends') if isinstance(info.get('extends'), str) else None),
+        "interfaces": info.get('interfaces') or info.get('extends') or [],
+        "fields": info.get('fields', []),
+        "methods": []
+    }
+    for m in info.get('methods', []):
+        summary["methods"].append({
+            "name": m.get('name'),
+            "parameters": m.get('parameters', []),
+            "return_type": m.get('return_type', 'void')
+        })
+    return summary
+
+# ---------------------------------------
+
 def generate_prompt(class_info, package, dependencies_info, indirect_dependencies_info):
     class_name = class_info['name']
     
@@ -155,6 +212,28 @@ def generate_prompt(class_info, package, dependencies_info, indirect_dependencie
 
     is_generic = '<' in class_name or any('<' in str(field['type']) for field in fields) or any('<' in str(method['return_type']) for method in methods)
 
+    # ------- 新增：解析并汇总依赖类型API -------
+    testable_units = dependencies_info.get('testable_units', {})
+    # 从 imports 中提取简单类型名（去掉可能的包名前缀与泛型后缀）
+    simple_import_types = set()
+    for imp in imports:
+        name = str(imp)
+        name = name.split('.')[-1]
+        name = re.sub(r"<.*>", "", name)
+        simple_import_types.add(name)
+
+    resolved_dep_fqns = _resolve_dep_fqns(simple_import_types, package, testable_units, set(indirect_deps))
+
+    dependency_api_refs = []
+    for fqn in resolved_dep_fqns[:20]:  # 避免提示过长，最多20个类型
+        info = testable_units.get(fqn)
+        if not info:
+            continue
+        dependency_api_refs.append(_summarize_dep_api(fqn, info))
+
+    unresolved_types = sorted(list(simple_import_types - set([f.split('.')[-1] for f in resolved_dep_fqns])))
+    # -----------------------------------------
+
     prompt = f"""
 ===============================
 JAVA CLASS UNIT TEST GENERATION
@@ -162,6 +241,14 @@ JAVA CLASS UNIT TEST GENERATION
 
 Class: {class_name}
 Package: {package}
+
+CRITICAL TESTING REQUIREMENTS:
+1. DO NOT use any mocking frameworks (Mockito, EasyMock, PowerMock, etc.)
+2. DO NOT use @Mock, @MockBean, @InjectMocks, or any mock-related annotations
+3. DO NOT import any mocking libraries (org.mockito.*, static imports from Mockito, etc.)
+4. Use only real objects and direct instantiation for testing
+5. For dependencies, create real instances or use test doubles without mocking frameworks
+6. Focus on testing actual behavior with real object interactions
 
 -----------
 1. STRUCTURE
@@ -208,6 +295,21 @@ Indirect Dependencies:
 Imports:
 {json.dumps(list(imports), indent=4)}
 
+------------------------------
+4. DEPENDENCY API REFERENCES
+------------------------------
+(Only use the following APIs for collaborators; do NOT fabricate missing members.)
+{json.dumps(dependency_api_refs, indent=4)}
+
+Unresolved External Types (treat as opaque; do NOT implement or cast to them):
+{json.dumps(unresolved_types, indent=4)}
+
+-----------
+5. GUIDELINES
+-----------
+- Never invent methods/fields on dependency types. Only call methods listed under DEPENDENCY API REFERENCES.
+- If a needed method is missing, adapt the test to use available public APIs or construct minimal real instances.
+- Do NOT implement/extend the wrong interface/class; ensure generics and type bounds strictly match the API summaries.
 
 """
     

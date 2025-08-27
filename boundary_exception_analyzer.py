@@ -10,7 +10,7 @@ class JavaMethodAnalyzer:
         with open(file_path, 'r') as file:
             content = file.read()
         
-        # Improved method extraction pattern, considering generics and multi-line declarations
+        # 改进的方法提取模式，考虑泛型和多行声明
         method_pattern = r'(public|private|protected)?\s*(?:<.*?>)?\s*\w+\s+(\w+)\s*\([^)]*\)\s*(?:throws\s+[\w,\s]+)?\s*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}'
         methods = re.findall(method_pattern, content, re.DOTALL)
 
@@ -31,14 +31,14 @@ class JavaMethodAnalyzer:
         return results
 
     def analyze_method(self, method_content):
-        # Improved if statement pattern, considering more complex conditions
+        # 改进的if语句模式，考虑更复杂的条件
         if_pattern = r'if\s*\((.*?)\)\s*(?:\{|[^;{]+;)'
         conditions = re.findall(if_pattern, method_content, re.DOTALL)
         for condition in conditions:
             if self.is_boundary_condition(condition):
                 self.boundary_conditions.append(condition.strip())
 
-        # Improved exception handling pattern, including throw statements and try-catch blocks
+        # 改进的异常处理模式，包括throw语句和try-catch块
         throw_pattern = r'throw\s+new\s+(\w+)'
         try_pattern = r'try\s*\{.*?\}\s*catch\s*\((.*?)\)'
         
@@ -51,7 +51,7 @@ class JavaMethodAnalyzer:
             self.exception_handling.append(f"Catches {exception.strip()}")
 
     def is_boundary_condition(self, condition):
-        # Extended boundary condition checking
+        # 扩展边界条件检查
         operators = ['<', '<=', '>', '>=', '==', '!=']
         comparisons = re.findall(r'(\w+)\s*([<>=!]+)\s*(\w+)', condition)
         return any(op in operators for _, op, _ in comparisons)
@@ -67,7 +67,7 @@ def analyze_boundary_and_exception(project_path):
                 results[relative_path] = analyzer.analyze_file(file_path)
     return results
 
-# Test code
+# 测试代码
 # if __name__ == "__main__":
 #     test_content = """
 #     public class Stack<T> {

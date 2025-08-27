@@ -16,15 +16,15 @@ from collections import defaultdict
 
 logger = logging.getLogger("logic_bug_patterns")
 
-class LogicBugPatternDetector:
+class FS_Detector:
     """
     Detects common logical bug patterns in Java source code.
     These patterns represent categories of logic bugs that are common
     in real-world code and can be specifically targeted by tests.
     """
     
-    # Update detector list in LogicBugPatternDetector.__init__ method
-    def __init__(self, source_code, class_name, package_name, logic_model=None):
+    # 在 FS_Detector.__init__ 方法中更新检测器列表
+    def __init__(self, source_code, class_name, package_name, f_model=None):
         """
         Initialize with source code to analyze
         
@@ -32,13 +32,13 @@ class LogicBugPatternDetector:
         source_code (str): Java source code
         class_name (str): Class name
         package_name (str): Package name
-        logic_model (object, optional): Logic model for enhanced detection
+        f_model (object, optional): Logic model for enhanced detection
         """
         self.source_code = source_code
         self.class_name = class_name
         self.package_name = package_name
         self.lines = source_code.split('\n')
-        self.logic_model = logic_model
+        self.f_model = f_model
         
         # Pattern detection results
         self.patterns = []
@@ -50,7 +50,7 @@ class LogicBugPatternDetector:
             self._detect_boundary_condition_bugs,
             self._detect_null_handling_bugs,
             self._detect_string_comparison_bugs,
-            self._detect_boolean_logic_bugs,
+            self._detect_boolean_bugs,
             self._detect_resource_leaks,
             self._detect_state_corruption_bugs,
             self._detect_integer_overflow_bugs,
@@ -64,7 +64,7 @@ class LogicBugPatternDetector:
             self._detect_error_propagation_issues,
             self._detect_improper_validation,
             self._detect_security_vulnerabilities,
-            self._detect_string_index_bounds_bugs,  # Add new string index bounds detector
+            self._detect_string_index_bounds_bugs,  # 添加新的字符串索引边界检测器
             self._detect_array_index_bounds_bugs,
         ]
 
@@ -74,7 +74,7 @@ class LogicBugPatternDetector:
         #     self._detect_off_by_one_bugs,
         #     self._detect_boundary_condition_bugs,
         #     self._detect_string_comparison_bugs,
-        #     self._detect_boolean_logic_bugs,
+        #     self._detect_boolean_bugs,
         #     self._detect_integer_overflow_bugs,
         #     self._detect_copy_paste_bugs,
         #     self._detect_floating_point_comparison,
@@ -350,7 +350,7 @@ class LogicBugPatternDetector:
                     "description": f"Possible string comparison using {operator} instead of .equals()"
                 })
     
-    def _detect_boolean_logic_bugs(self):
+    def _detect_boolean_bugs(self):
         """Detect potential boolean logic bugs"""
         # Look for complex boolean expressions
         bool_expr_pattern = r'(?:if|while)\s*\(\s*([^{};()]+?(?:&&|\|\|)[^{};()]+?)\s*\)'
@@ -363,7 +363,7 @@ class LogicBugPatternDetector:
             # Check for potential negation issues (double negation, etc.)
             if expr.count('!') > 1:
                 self.patterns.append({
-                    "type": "boolean_logic",
+                    "type": "boolean_bug",
                     "location": line_num,
                     "code": expr,
                     "risk_level": "medium",
@@ -374,7 +374,7 @@ class LogicBugPatternDetector:
             demorgan_pattern = r'!\s*\(\s*([^()]+?)\s*(?:&&|\|\|)\s*([^()]+?)\s*\)'
             if re.search(demorgan_pattern, expr):
                 self.patterns.append({
-                    "type": "boolean_logic",
+                    "type": "boolean_bug",
                     "location": line_num,
                     "code": expr,
                     "risk_level": "high", 
@@ -386,7 +386,7 @@ class LogicBugPatternDetector:
             unique_parts = set(p.strip() for p in parts)
             if len(parts) != len(unique_parts):
                 self.patterns.append({
-                    "type": "boolean_logic",
+                    "type": "boolean_bug",
                     "location": line_num,
                     "code": expr,
                     "risk_level": "medium",
@@ -396,7 +396,7 @@ class LogicBugPatternDetector:
             # Check for potential tautologies or contradictions
             if ('true' in expr and '||' in expr) or ('false' in expr and '&&' in expr):
                 self.patterns.append({
-                    "type": "boolean_logic",
+                    "type": "boolean_bug",
                     "location": line_num,
                     "code": expr,
                     "risk_level": "medium",
@@ -613,7 +613,7 @@ class LogicBugPatternDetector:
             })
         
         # Look for catch Exception (too generic)
-        generic_catch_pattern = r'catch\s*\(\s*(?:Exception|Throwable|RuntimeException)\s+\w+\s*\)'
+        generic_catch_pattern = r'catch\s*\(\s*(?:Exception|Throwable|RuntimeException)\s+'
         matches = re.finditer(generic_catch_pattern, self.source_code)
         
         for match in matches:

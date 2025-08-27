@@ -14,15 +14,15 @@ import logging
 import javalang
 from collections import defaultdict
 
-logger = logging.getLogger("logic_model_extractor")
+logger = logging.getLogger("f_model_extractor")
 
-class LogicModelExtractor:
+class Extractor:
     """
     Extracts logical model from Java source code including boundary conditions,
     logical operations, control flow paths, and data dependencies.
     """
     
-    # first modify the __init__ method of the LogicModelExtractor class
+    # 修改 Extractor 类的 __init__ 方法
     def __init__(self, source_code, class_name, package_name):
         """
         Initialize with source code to analyze
@@ -39,7 +39,7 @@ class LogicModelExtractor:
         
         # Core logic model components
         self.boundary_conditions = []
-        self.logical_operations = []
+        self.operations = []
         self.control_flow_paths = []
         self.data_dependencies = []
         self.decision_points = []
@@ -97,7 +97,7 @@ class LogicModelExtractor:
             
             logger.info(f"Extracted logic model for {self.package_name}.{self.class_name}: " +
                       f"{len(self.boundary_conditions)} boundary conditions, " +
-                      f"{len(self.logical_operations)} logical operations, " +
+                      f"{len(self.operations)} logical operations, " +
                       f"{len(self.control_flow_paths)} control paths, " +
                       f"{len(self.decision_points)} decision points")
                       
@@ -113,7 +113,7 @@ class LogicModelExtractor:
                 logger.error("Cannot extract model: source_code is None")
                 self.methods = []
                 self.boundary_conditions = []
-                self.logical_operations = []
+                self.operations = []
                 self.decision_points = []
                 return
                 
@@ -121,7 +121,7 @@ class LogicModelExtractor:
                 logger.warning("Source code is empty, extracting empty model")
                 self.methods = []
                 self.boundary_conditions = []
-                self.logical_operations = []
+                self.operations = []
                 self.decision_points = []
                 return
                 
@@ -177,7 +177,7 @@ class LogicModelExtractor:
                     
                     # Extract logical operations
                     if " && " in condition or " || " in condition:
-                        self.logical_operations.append({
+                        self.operations.append({
                             "operation": "&&" if " && " in condition else "||",
                             "condition": condition,
                             "line": line_num,
@@ -250,7 +250,7 @@ class LogicModelExtractor:
             # Initialize empty model on error
             self.methods = []
             self.boundary_conditions = []
-            self.logical_operations = []
+            self.operations = []
             self.decision_points = []
     
     def _get_line_number(self, char_pos):
@@ -343,7 +343,7 @@ class LogicModelExtractor:
                     if isinstance(node.condition, javalang.tree.BinaryOperation):
                         if hasattr(node.condition, 'operator'):
                             if node.condition.operator in ['&&', '||']:
-                                self.logical_operations.append({
+                                self.operations.append({
                                     "operation": node.condition.operator,
                                     "condition": condition_str,
                                     "line": line_num,
@@ -351,7 +351,7 @@ class LogicModelExtractor:
                                 })
                             elif node.condition.operator in ['>', '>=', '<', '<=', '==', '!=']:
                                 # Add comparison operation
-                                self.logical_operations.append({
+                                self.operations.append({
                                     "operation": node.condition.operator,
                                     "condition": condition_str,
                                     "line": line_num,
@@ -387,7 +387,7 @@ class LogicModelExtractor:
                     if isinstance(node.condition, javalang.tree.BinaryOperation):
                         if hasattr(node.condition, 'operator'):
                             if node.condition.operator in ['&&', '||']:
-                                self.logical_operations.append({
+                                self.operations.append({
                                     "operation": node.condition.operator,
                                     "condition": condition_str,
                                     "line": line_num,
@@ -732,7 +732,7 @@ class LogicModelExtractor:
             decision_count = len([d for d in self.decision_points if d["method"] == method_name])
             
             # Count logical operations in this method
-            logical_op_count = len([op for op in self.logical_operations if op["method"] == method_name])
+            logical_op_count = len([op for op in self.operations if op["method"] == method_name])
             
             # Count nested conditions
             nested_count = len([nc for nc in self.nested_conditions if nc["method"] == method_name])
@@ -747,7 +747,7 @@ class LogicModelExtractor:
                 "cyclomatic": cyclomatic,
                 "cognitive": cognitive,
                 "decision_points": decision_count,
-                "logical_operations": logical_op_count,
+                "operations": logical_op_count,
                 "nested_conditions": nested_count
             }
     
@@ -850,7 +850,7 @@ class LogicModelExtractor:
         """
         complex_conditions = []
         
-        for op in self.logical_operations:
+        for op in self.operations:
             condition = op["condition"]
             # Count logical operators
             op_count = condition.count("&&") + condition.count("||")
@@ -969,7 +969,7 @@ class LogicModelExtractor:
             "methods": self.methods,
             "method_complexity": self.method_complexity,
             "boundary_conditions": self.boundary_conditions,
-            "logical_operations": self.logical_operations,
+            "operations": self.operations,
             "decision_points": self.decision_points,
             "control_flow_paths": self.control_flow_paths,
             "data_dependencies": self.data_dependencies,

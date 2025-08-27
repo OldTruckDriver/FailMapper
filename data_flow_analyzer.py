@@ -1,6 +1,6 @@
 from typing import Dict, List, Any
 import javalang
-from java_type_converter import convert_type  # Import new type conversion function
+from java_type_converter import convert_type  # 导入新的类型转换函数
 
 def extract_data_flow_graph(node: javalang.tree.ClassDeclaration) -> Dict[str, List[Dict[str, Any]]]:
     dfg = {}
@@ -62,7 +62,7 @@ def analyze_statement(statement, dfg, variables):
             details = simplify_expression(statement.expression)
             # Ensure lhs is not empty before splitting
             if lhs:
-                to_value = lhs.split('[')[0]  # Extract array name
+                to_value = lhs.split('[')[0]  # 取数组名称
             else:
                 to_value = ""
             dfg.append({

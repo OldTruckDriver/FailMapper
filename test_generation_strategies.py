@@ -131,7 +131,7 @@ class LogicTestStrategy:
             "effective_conditions": list(self.effective_conditions)
         }
 
-class LogicTestStrategySelector:
+class TestStrategySelector:
     """
     Selects appropriate test generation strategies based on code analysis.
     
@@ -139,16 +139,16 @@ class LogicTestStrategySelector:
     effective test strategies.
     """
     
-    def __init__(self, logic_patterns=None, logic_model=None):
+    def __init__(self, failures=None, f_model=None):
         """
         Initialize strategy selector
         
         Parameters:
-        logic_patterns (list): Detected logic bug patterns
-        logic_model (LogicModelExtractor): Logic model extracted from code
+        failures (list): Detected logic bug patterns
+        f_model (Extractor): Logic model extracted from code
         """
-        self.logic_patterns = logic_patterns or []
-        self.logic_model = logic_model
+        self.failures = failures or []
+        self.f_model = f_model
         
         # Initialize strategies
         strategies_list = self._initialize_strategies()
@@ -185,11 +185,11 @@ class LogicTestStrategySelector:
                 target_bugs=["boundary_error", "off_by_one", "index_error"]
             ),
             LogicTestStrategy(
-                "logical_expression",
+                "expression",
                 "Logical Expression Testing",
                 "Tests complex logical expressions and conditionals",
                 weight=1.0,
-                target_bugs=["boolean_logic", "operator_logic"]
+                target_bugs=["boolean_bug", "operator_logic"]
             ),
             LogicTestStrategy(
                 "exception_handling",
@@ -308,11 +308,11 @@ class LogicTestStrategySelector:
         #         target_bugs=["boundary_error", "off_by_one", "index_error"]
         #     ),
         #     LogicTestStrategy(
-        #         "logical_expression",
+        #         "expression",
         #         "Logical Expression Testing",
         #         "Tests complex logical expressions and conditionals",
         #         weight=1.0,
-        #         target_bugs=["boolean_logic", "operator_logic"]
+        #         target_bugs=["boolean_bug", "operator_logic"]
         #     ),
         #     LogicTestStrategy(
         #         "data_validation",
@@ -368,13 +368,13 @@ class LogicTestStrategySelector:
         # Define pattern-to-strategy mappings
         pattern_mappings = {
             # Logical bug patterns
-            "operator_precedence": ["logical_expression"],
-            "bitwise_logical_confusion": ["logical_expression"],
+            "operator_precedence": ["expression"],
+            "bitwise_logical_confusion": ["expression"],
             "off_by_one": ["boundary_testing"],
             "boundary_condition": ["boundary_testing"],
             "null_handling": ["null_empty_testing", "exception_handling"],
             "string_comparison": ["data_validation"],
-            "boolean_logic": ["logical_expression"],
+            "boolean_bug": ["expression"],
 
             # 新增字符串索引相关映射
             "string_index_bounds": ["string_operation_testing", "boundary_testing"],
@@ -418,7 +418,7 @@ class LogicTestStrategySelector:
         }
         
         # Apply pattern mappings
-        for pattern in self.logic_patterns:
+        for pattern in self.failures:
             pattern_type = pattern.get("type", "unknown")
             pattern_subtype = pattern.get("subtype", "unknown")
             
@@ -434,18 +434,18 @@ class LogicTestStrategySelector:
     
     def _map_conditions_to_strategies(self):
         """Map logic model conditions to relevant strategies"""
-        if not self.logic_model or not hasattr(self.logic_model, 'boundary_conditions'):
+        if not self.f_model or not hasattr(self.f_model, 'boundary_conditions'):
             return
             
         # Map boundary conditions
-        for condition in self.logic_model.boundary_conditions:
+        for condition in self.f_model.boundary_conditions:
             condition_id = f"{condition['method']}_{condition['line']}"
             condition_type = condition.get("type", "")
             
             # Map based on condition type
             if condition_type in ["if_condition"]:
                 self.condition_to_strategies[condition_id].append("boundary_testing")
-                self.condition_to_strategies[condition_id].append("logical_expression")
+                self.condition_to_strategies[condition_id].append("expression")
                 
             elif condition_type in ["while_loop", "for_loop"]:
                 self.condition_to_strategies[condition_id].append("boundary_testing")
@@ -455,7 +455,7 @@ class LogicTestStrategySelector:
     #     Select strategies suitable for the current state with improved exploration for uncovered patterns
         
     #     Parameters:
-    #     state (LogicAwareTestState): Current test state
+    #     state (FATestState): Current test state
     #     covered_patterns (set): Covered patterns 
     #     covered_conditions (set): Covered conditions
     #     max_strategies (int): Maximum number of strategies to return
@@ -469,8 +469,8 @@ class LogicTestStrategySelector:
     #     uncovered_conditions = set()
         
     #     # Get uncovered patterns
-    #     if covered_patterns is not None and self.logic_patterns:
-    #         for pattern in self.logic_patterns:
+    #     if covered_patterns is not None and self.failures:
+    #         for pattern in self.failures:
     #             pattern_id = f"{pattern['type']}_{pattern['location']}"
     #             if pattern_id not in covered_patterns:
     #                 uncovered_patterns.add(pattern['type'])  # Add pattern type
@@ -483,8 +483,8 @@ class LogicTestStrategySelector:
     #                 })
         
     #     # Get uncovered conditions
-    #     if covered_conditions is not None and self.logic_model and hasattr(self.logic_model, 'boundary_conditions'):
-    #         for condition in self.logic_model.boundary_conditions:
+    #     if covered_conditions is not None and self.f_model and hasattr(self.f_model, 'boundary_conditions'):
+    #         for condition in self.f_model.boundary_conditions:
     #             condition_id = f"{condition['method']}_{condition['line']}"
     #             if condition_id not in covered_conditions:
     #                 uncovered_conditions.add(condition_id)
@@ -649,15 +649,15 @@ class LogicTestStrategySelector:
         
     #     # Make sure we have at least one strategy
     #     if not selected_strategies:
-    #         # Default to boundary_testing or logical_expression
+    #         # Default to boundary_testing or expression
     #         if "boundary_testing" in self.strategies:
     #             selected_strategies.append(self.strategies["boundary_testing"].to_dict())
     #             self.strategy_usage["boundary_testing"] = self.strategy_usage.get("boundary_testing", 0) + 1
     #             self.strategy_last_used["boundary_testing"] = self.current_iteration
-    #         elif "logical_expression" in self.strategies:
-    #             selected_strategies.append(self.strategies["logical_expression"].to_dict())
-    #             self.strategy_usage["logical_expression"] = self.strategy_usage.get("logical_expression", 0) + 1
-    #             self.strategy_last_used["logical_expression"] = self.current_iteration
+    #         elif "expression" in self.strategies:
+    #             selected_strategies.append(self.strategies["expression"].to_dict())
+    #             self.strategy_usage["expression"] = self.strategy_usage.get("expression", 0) + 1
+    #             self.strategy_last_used["expression"] = self.current_iteration
     #         else:
     #             # Fall back to any available strategy
     #             strategy_id = next(iter(self.strategies))
@@ -684,7 +684,7 @@ class LogicTestStrategySelector:
         Select test strategies based on current state and business logic analysis
         
         Parameters:
-        state (LogicAwareTestState): Current test state
+        state (FATestState): Current test state
         covered_patterns (set): Already covered patterns
         covered_conditions (set): Already covered branch conditions
         business_logic_issues (list): Potential business logic issues identified by analyzer
@@ -695,7 +695,7 @@ class LogicTestStrategySelector:
         # Initialize base strategies with default weights
         all_strategies = {
             "boundary_testing": {"name": "Boundary Value Testing", "weight": 1.0},
-            "logical_expression": {"name": "Logical Expression Testing", "weight": 1.0},
+            "expression": {"name": "Logical Expression Testing", "weight": 1.0},
             "exception_handling": {"name": "Exception Path Testing", "weight": 0.7},
             "data_validation": {"name": "Data Validation Testing", "weight": 0.6},
             "resource_management": {"name": "Resource Management Testing", "weight": 0.5},
@@ -706,7 +706,7 @@ class LogicTestStrategySelector:
         # Boost strategies based on covered patterns
         if covered_patterns:
             # Adjust weights based on pattern coverage
-            uncovered_patterns = self.logic_patterns if self.logic_patterns else []
+            uncovered_patterns = self.failures if self.failures else []
             if isinstance(uncovered_patterns, list) and covered_patterns:
                 uncovered_patterns = [p for p in uncovered_patterns 
                                 if f"{p['type']}_{p['location']}" not in covered_patterns]
@@ -717,8 +717,8 @@ class LogicTestStrategySelector:
                 
                 if "boundary" in pattern_type or "off_by_one" in pattern_type:
                     all_strategies["boundary_testing"]["weight"] += 0.2
-                elif "boolean_logic" in pattern_type or "operator" in pattern_type:
-                    all_strategies["logical_expression"]["weight"] += 0.2
+                elif "boolean_bug" in pattern_type or "operator" in pattern_type:
+                    all_strategies["expression"]["weight"] += 0.2
                 elif "null" in pattern_type or "exception" in pattern_type:
                     all_strategies["exception_handling"]["weight"] += 0.2
                 elif "resource" in pattern_type or "leak" in pattern_type:
@@ -727,10 +727,10 @@ class LogicTestStrategySelector:
                     all_strategies["state_transition"]["weight"] += 0.2
         
         # Adjust weights based on covered branch conditions
-        if covered_conditions and self.logic_model and hasattr(self.logic_model, 'boundary_conditions'):
+        if covered_conditions and self.f_model and hasattr(self.f_model, 'boundary_conditions'):
             # Get uncovered boundary conditions
             all_conditions = [(cond.get("method", ""), cond.get("line", 0))
-                        for cond in self.logic_model.boundary_conditions]
+                        for cond in self.f_model.boundary_conditions]
             covered_condition_tuples = [tuple(cond_id.split("_")) 
                                     for cond_id in covered_conditions]
             
@@ -738,7 +738,7 @@ class LogicTestStrategySelector:
             uncovered_if = 0
             uncovered_loops = 0
             
-            for cond in self.logic_model.boundary_conditions:
+            for cond in self.f_model.boundary_conditions:
                 condition_id = f"{cond.get('method', '')}_b{cond.get('line', 0)}"
                 cond_type = cond.get("type", "")
                 
@@ -750,7 +750,7 @@ class LogicTestStrategySelector:
             
             # Adjust weights based on uncovered condition types
             if uncovered_if > uncovered_loops:
-                all_strategies["logical_expression"]["weight"] += 0.3
+                all_strategies["expression"]["weight"] += 0.3
             else:
                 all_strategies["boundary_testing"]["weight"] += 0.3
         
@@ -767,7 +767,7 @@ class LogicTestStrategySelector:
                 if 'boundary' in issue_type.lower() or 'index' in issue_type.lower():
                     all_strategies["boundary_testing"]["weight"] += 0.5 * confidence
                 elif 'logic' in issue_type.lower() or 'condition' in issue_type.lower():
-                    all_strategies["logical_expression"]["weight"] += 0.6 * confidence
+                    all_strategies["expression"]["weight"] += 0.6 * confidence
                 elif 'null' in issue_type.lower() or 'exception' in issue_type.lower():
                     all_strategies["exception_handling"]["weight"] += 0.5 * confidence
                 elif 'validation' in issue_type.lower() or 'input' in issue_type.lower():
@@ -797,7 +797,7 @@ class LogicTestStrategySelector:
                             if "boundary" in bug_type.lower():
                                 all_strategies["boundary_testing"]["weight"] += 0.3
                             elif "logic" in bug_type.lower():
-                                all_strategies["logical_expression"]["weight"] += 0.3
+                                all_strategies["expression"]["weight"] += 0.3
                             elif "resource" in bug_type.lower():
                                 all_strategies["resource_management"]["weight"] += 0.3
         

@@ -4,7 +4,7 @@ Enhanced MCTS Test Generator
 
 This module provides an enhanced Monte Carlo Tree Search (MCTS) implementation
 for test generation. It serves as a base class for more specialized implementations
-such as the Logic-Aware MCTS.
+such as the Failure-Aware MCTS.
 """
 
 import os
@@ -17,10 +17,9 @@ from collections import defaultdict
 
 # Import modules for test validation and LLM interactions
 from feedback import (
-    generate_initial_test, save_test_code, generate_test_summary,
-    read_source_code, find_source_code, strip_java_comments,
-    run_tests_with_jacoco, get_coverage_percentage, 
-    read_test_prompt_file, call_anthropic_api, call_gpt_api, call_deepseek_api, extract_java_code
+    save_test_code, generate_test_summary,read_source_code, 
+    find_source_code, run_tests_with_jacoco, get_coverage_percentage, 
+    call_anthropic_api, call_gpt_api, call_deepseek_api, extract_java_code
 )
 
 # Configure logging
@@ -82,7 +81,8 @@ class TestMethodExtractor:
             "import java.util.Iterator;",
             "import java.util.ListIterator;",
             "import java.time.Duration;",
-            "import java.nio.charset.StandardCharsets;",
+            "import java.nio.charset.StandardCharsets;"
+
         ]
         
         # Patterns for common issues
@@ -539,7 +539,7 @@ class AdaptiveMCTSNode:
             # Sample uncovered lines with priority based on their location
             sorted_lines = sorted(self.state.uncovered_lines, key=lambda x: x['line'])
             
-            # Target lines in the middle of the class first (often more important logic)
+            # Target lines in the middle of the class first
             if source_code:
                 source_lines = source_code.split('\n')
                 middle_index = len(source_lines) // 2
@@ -822,9 +822,9 @@ class EnhancedMCTSTestGenerator:
     
     def __init__(self, project_dir, prompt_dir, class_name, package_name, 
             initial_test_code, source_code, test_prompt, 
-            max_iterations=5, exploration_weight=1.0,
+            max_iterations=20, exploration_weight=1.0,
             use_anthropic=True, verify_bugs_mode="batch", 
-            focus_on_bugs=True, initial_coverage=0.0):
+            focus_on_bugs=True, initial_coverage=0.0, project_type='maven'):
         self.project_dir = project_dir
         self.prompt_dir = prompt_dir
         self.class_name = class_name
@@ -838,6 +838,7 @@ class EnhancedMCTSTestGenerator:
         self.verify_bugs_mode = verify_bugs_mode
         self.focus_on_bugs = focus_on_bugs
         self.initial_coverage = initial_coverage
+        self.project_type = project_type
         self.critical_bug_checked = False
         
         # Create validator and method extractor
@@ -871,7 +872,8 @@ class EnhancedMCTSTestGenerator:
             class_name, 
             package_name, 
             project_dir,
-            source_code
+            source_code,
+            project_type
         )
         # Initialize all bug tracking variables first
         self.all_bug_finding_tests = []
@@ -1841,10 +1843,15 @@ Your response must contain:
 4. ALL existing test methods, not just the fixed ones
 5. All fields and setup methods
 
-IMPORTANT: DO NOT use placeholders or comments like "// All existing test methods remain the same..." 
-or "// [Previous test methods continue unchanged...]". You MUST include ALL actual code verbatim, 
-even if it's unchanged. Shortcuts, abbreviations, or comments indicating omitted code are NOT acceptable.
-I need the complete verbatim code that can be directly saved to a file and compiled.
+ABSOLUTELY FORBIDDEN SHORTCUTS:
+- DO NOT use "// All existing test methods remain the same..."
+- DO NOT use "// [Previous test methods continue unchanged...]"
+- DO NOT use "// ... existing code ..."
+- DO NOT use "// [Previous imports remain exactly the same]"
+- DO NOT use ANY placeholders or comments indicating omitted code
+- You MUST include ALL actual code verbatim, even if it's unchanged
+- Shortcuts, abbreviations, or comments indicating omitted code are NOT acceptable
+- I need the complete verbatim code that can be directly saved to a file and compiled
 
 Format your entire response as a SINGLE complete Java file that I can save and run directly.
     Base test class:
@@ -1862,7 +1869,8 @@ Format your entire response as a SINGLE complete Java file that I can save and r
     4. Add a comment before each bug test method: // VERIFIED BUG TEST
     5. Ensure the final code can compile and run
 
-    CRITICAL: I need the ENTIRE test class including ALL original methods, not just the fixed parts.
+    CRITICAL ANTI-PLACEHOLDER REQUIREMENTS:
+I need the ENTIRE test class including ALL original methods, not just the fixed parts.
 Your response must contain:
 1. All package declarations
 2. All import statements 
@@ -1870,10 +1878,15 @@ Your response must contain:
 4. ALL existing test methods, not just the fixed ones
 5. All fields and setup methods
 
-IMPORTANT: DO NOT use placeholders or comments like "// All existing test methods remain the same..." 
-or "// [Previous test methods continue unchanged...]". You MUST include ALL actual code verbatim, 
-even if it's unchanged. Shortcuts, abbreviations, or comments indicating omitted code are NOT acceptable.
-I need the complete verbatim code that can be directly saved to a file and compiled.
+ABSOLUTELY FORBIDDEN SHORTCUTS:
+- DO NOT use "// All existing test methods remain the same..."
+- DO NOT use "// [Previous test methods continue unchanged...]"
+- DO NOT use "// ... existing code ..."
+- DO NOT use "// [Previous imports remain exactly the same]"
+- DO NOT use ANY placeholders or comments indicating omitted code
+- You MUST include ALL actual code verbatim, even if it's unchanged
+- Shortcuts, abbreviations, or comments indicating omitted code are NOT acceptable
+- I need the complete verbatim code that can be directly saved to a file and compiled
 
 Format your entire response as a SINGLE complete Java file that I can save and run directly.
     """
@@ -2158,7 +2171,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
             # 尝试编译测试
             # success, stdout, stderr = run_maven_command("clean test", project_dir)
             coverage_data, assertion_failures, execution_time, compilation_errors = run_tests_with_jacoco(
-                            project_dir, class_name, package_name, f"{package_name}.{class_name}Test"
+                            project_dir, class_name, package_name, f"{package_name}.{class_name}Test", False, getattr(self, 'project_type', 'maven')
                         )
             
             # Check if compilation was successful (no errors)
@@ -2217,9 +2230,11 @@ Format your entire response as a SINGLE complete Java file that I can save and r
         """
         logger.info("尝试使用LLM修复测试代码")
         
-        # 创建提示 - 注重明确LLM的任务，并提供所有需要的上下文
+        # create the prompt - emphasize the clear task of the LLM and provide all the necessary context
         prompt = f"""Please help fix compilation issues in the following JUnit test code. Your task is identify undeclared variables and missing imports, and provide the complete fixed code, I need the full code, not just the fixed part.
-CRITICAL: I need the ENTIRE test class including ALL original methods, not just the fixed parts.
+
+CRITICAL ANTI-PLACEHOLDER REQUIREMENTS:
+I need the ENTIRE test class including ALL original methods, not just the fixed parts.
 Your response must contain:
 1. All package declarations
 2. All import statements 
@@ -2227,13 +2242,25 @@ Your response must contain:
 4. ALL existing test methods, not just the fixed ones
 5. All fields and setup methods
 
-IMPORTANT: DO NOT use placeholders or comments like "// All existing test methods remain the same..." 
-or "// [Previous test methods continue unchanged...]". You MUST include ALL actual code verbatim, 
-even if it's unchanged. Shortcuts, abbreviations, or comments indicating omitted code are NOT acceptable.
-I need the complete verbatim code that can be directly saved to a file and compiled.
+ABSOLUTELY FORBIDDEN SHORTCUTS:
+- DO NOT use placeholders like "// All existing test methods remain the same..."
+- DO NOT use "// [Previous test methods continue unchanged...]"
+- DO NOT use "// ... existing code ..."
+- DO NOT use "// [Previous imports remain exactly the same]"
+- DO NOT use ANY comments that indicate omitted code
+- You MUST include ALL actual code verbatim, even if it's unchanged
+- Shortcuts, abbreviations, or comments indicating omitted code are NOT acceptable
+- I need the complete verbatim code that can be directly saved to a file and compiled
+
+STRICT ANTI-MOCKING REQUIREMENTS:
+- ABSOLUTELY NO use of any mocking frameworks (Mockito, EasyMock, PowerMock, etc.)
+- ABSOLUTELY NO @Mock, @MockBean, @InjectMocks, or any mock-related annotations
+- ABSOLUTELY NO imports from org.mockito.* or static imports from Mockito
+- ABSOLUTELY NO mock(), when(), verify(), or any mocking methods
+- Use ONLY real objects and direct instantiation for testing
+- Create real instances of dependencies instead of mocks
 
 Format your entire response as a SINGLE complete Java file that I can save and run directly.
-    Format your entire response as a SINGLE complete Java file that I can save and run directly.
   
     CLASS INFO:
     - Class name: {class_name}
@@ -2252,7 +2279,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
 
     """
 
-        # 如果有错误消息，添加到提示中
+        # if there is an error message, add it to the prompt
         if error_message:
             prompt += f"""
     Error message:
@@ -2263,6 +2290,12 @@ Format your entire response as a SINGLE complete Java file that I can save and r
     2. Add missing class fields and initialization
     3. Solve potential structural problems, such as mismatched parentheses or formatting issues
     4. If you find variables that are used but not declared, please add appropriate declarations
+    
+    STRICT ANTI-MOCKING REQUIREMENTS FOR FIXING:
+    - REMOVE any mocking framework imports (org.mockito.*, EasyMock, PowerMock)
+    - REMOVE any @Mock, @MockBean, @InjectMocks annotations
+    - REPLACE any mock(), when(), verify() calls with real object instantiation
+    - Use ONLY real objects and direct instantiation for testing
 
     Please provide the complete fixed test code, ensuring it can be compiled correctly. Provide the full code, I need the completed code, not just the fixed part.
     """
@@ -2274,6 +2307,12 @@ Format your entire response as a SINGLE complete Java file that I can save and r
     3. Verify that all variables used are properly declared or initialized
     4. Ensure the test method structure is correct, with each method having the @Test annotation
     5. Fix any syntax errors or mismatched parentheses
+    
+    STRICT ANTI-MOCKING REQUIREMENTS FOR FIXING:
+    - REMOVE any mocking framework imports (org.mockito.*, EasyMock, PowerMock)
+    - REMOVE any @Mock, @MockBean, @InjectMocks annotations
+    - REPLACE any mock(), when(), verify() calls with real object instantiation
+    - Use ONLY real objects and direct instantiation for testing
 
 CRITICAL: I need the ENTIRE test class including ALL original methods, not just the fixed parts.
 Your response must contain:
@@ -2283,36 +2322,41 @@ Your response must contain:
 4. ALL existing test methods, not just the fixed ones
 5. All fields and setup methods
 
-IMPORTANT: DO NOT use placeholders or comments like "// All existing test methods remain the same..." 
-or "// [Previous test methods continue unchanged...]". You MUST include ALL actual code verbatim, 
-even if it's unchanged. Shortcuts, abbreviations, or comments indicating omitted code are NOT acceptable.
-I need the complete verbatim code that can be directly saved to a file and compiled.
+ABSOLUTELY FORBIDDEN SHORTCUTS:
+- DO NOT use "// All existing test methods remain the same..."
+- DO NOT use "// [Previous test methods continue unchanged...]"
+- DO NOT use "// ... existing code ..."
+- DO NOT use "// [Previous imports remain exactly the same]"
+- DO NOT use ANY placeholders or comments indicating omitted code
+- You MUST include ALL actual code verbatim, even if it's unchanged
+- Shortcuts, abbreviations, or comments indicating omitted code are NOT acceptable
+- I need the complete verbatim code that can be directly saved to a file and compiled
 
 Format your entire response as a SINGLE complete Java file that I can save and run directly.
     """
 
-        # 调用LLM API
+        # call the LLM API
         try:
             api_response = call_anthropic_api(prompt)
             # api_response = call_deepseek_api(prompt)
             
-            if not api_response or len(api_response) < 100:  # 确保有足够的响应
+            if not api_response or len(api_response) < 100:  # ensure enough response
                 logger.warning("LLM response is insufficient, trying alternative API")
                 api_response = call_gpt_api(prompt)
                 
-            # 提取Java代码
+            # extract the Java code
             fixed_code = extract_java_code(api_response)
             
             if not fixed_code or len(fixed_code) < 100:
-                logger.warning("Failed to extract valid Java code from LLM response")
-                return test_code  # 返回原始代码
+                logger.warning("cannot extract valid Java code from LLM response")
+                return test_code  # return the original code
                 
             logger.info("LLM successfully fixed the test code")
             return fixed_code
             
         except Exception as e:
-            logger.error(f"Error calling LLM API: {str(e)}")
-            return test_code  # 出错时返回原始代码
+            logger.error(f"error calling LLM API: {str(e)}")
+            return test_code  # return the original code
 
 
     def merge_bug_finding_methods_into_best_test(self, best_coverage_test, bug_finding_tests):
@@ -2593,8 +2637,8 @@ Format your entire response as a SINGLE complete Java file that I can save and r
                 api_response = call_anthropic_api(prompt)
                 # api_response = call_deepseek_api(prompt)
             else:
-                api_response = call_gpt_api(prompt)
-                # api_response = call_deepseek_api(prompt)
+                # api_response = call_gpt_api(prompt)
+                api_response = call_deepseek_api(prompt)
                 
             # Extract Java code
             improved_test_code = extract_java_code(api_response)
@@ -2739,26 +2783,26 @@ Format your entire response as a SINGLE complete Java file that I can save and r
             for m in state.test_methods if isinstance(m, dict)
         )
         
-        # 检查是否有负数值测试
+        # check whether there are negative number tests
         has_negative_num_tests = any(
             re.search(r'[-]\d+', m.get("code", "")) 
             for m in state.test_methods if isinstance(m, dict)
         )
         
-        # 检查是否有多迭代器测试
+        # check whether there are multiple iterator tests
         has_multi_iterator_tests = any(
             ("Iterator" in m.get("code", "") and m.get("code", "").count("next()") > 1)
             for m in state.test_methods if isinstance(m, dict)
         )
         
-        # NEW: 检查是否有空值/null测试
+        # NEW: check whether there are null/empty tests
         has_empty_null_tests = any(
             ("null" in m.get("code", "").lower() or "empty" in m.get("code", "").lower() or 
             "\"\"" in m.get("code", "") or "''" in m.get("code", ""))
             for m in state.test_methods if isinstance(m, dict)
         )
         
-        # NEW: 检查是否有特殊路径字符测试
+        # NEW: check whether there are special path character tests
         has_path_char_tests = any(
             (("/" in m.get("code", "") and "path" in m.get("code", "").lower()) or 
             "\\" in m.get("code", "") or 
@@ -2766,7 +2810,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
             for m in state.test_methods if isinstance(m, dict)
         )
         
-        # NEW: 检查是否有权限测试
+        # NEW: check whether there are permission tests
         has_permission_tests = any(
             ("permission" in m.get("code", "").lower() or 
             "unix" in m.get("code", "").lower() or
@@ -2775,7 +2819,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
             for m in state.test_methods if isinstance(m, dict)
         )
         
-        # NEW: 检查是否有格式兼容性测试
+        # NEW: check whether there are format compatibility tests
         has_format_compat_tests = any(
             ("format" in m.get("code", "").lower() and 
             ("excel" in m.get("code", "").lower() or 
@@ -2784,13 +2828,13 @@ Format your entire response as a SINGLE complete Java file that I can save and r
             for m in state.test_methods if isinstance(m, dict)
         )
         
-        # NEW: 检查是否有序列操作测试
+        # NEW: check whether there are sequential operation tests
         has_sequential_tests = any(
             m.get("code", "").count(".") > 5  # 多个链式操作调用
             for m in state.test_methods if isinstance(m, dict)
         )
         
-        # 多样性奖励
+        # diversity reward
         if has_special_char_tests:
             reward += 15.0
         
@@ -2800,7 +2844,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
         if has_multi_iterator_tests:
             reward += 20.0
             
-        # NEW: 额外多样性奖励
+        # NEW: extra diversity reward
         if has_empty_null_tests:
             reward += 17.0
             
@@ -2816,9 +2860,9 @@ Format your entire response as a SINGLE complete Java file that I can save and r
         if has_sequential_tests:
             reward += 15.0
         
-        # 如果优先寻找bug，调整权重
+        # if focusing on bugs, adjust the weight
         if hasattr(self, 'focus_on_bugs') and self.focus_on_bugs:
-            # 检测到bug的奖励翻倍
+            # reward for finding bugs is doubled
             bug_multiplier = 2.0
         else:
             bug_multiplier = 1.0
@@ -2828,11 +2872,11 @@ Format your entire response as a SINGLE complete Java file that I can save and r
         if error_count > 0:
             reward -= 15.0 * error_count
         
-        # Severely penalize nested classes
+        # severely penalize nested classes
         if state.has_nested_classes:
             reward -= 50.0
         
-        # Reward for verified bugs (higher reward)
+        # reward for verified bugs (higher reward)
         verified_bugs = [bug for bug in state.detected_bugs 
                         if bug.get("verified", False) and bug.get("is_real_bug", True)]
         
@@ -2846,12 +2890,12 @@ Format your entire response as a SINGLE complete Java file that I can save and r
             # Higher reward for verified bugs
             reward += 40.0 * severity_multiplier * bug_multiplier
         
-        # Penalty for verified false positives
+        # penalty for verified false positives
         false_positives = [bug for bug in state.detected_bugs 
                         if bug.get("verified", False) and not bug.get("is_real_bug", True)]
         reward -= 5.0 * len(false_positives)
         
-        # Handle assertion failures (potential bugs)
+        # handle assertion failures (potential bugs)
         assertion_count = 0
         if hasattr(state, 'assertion_failures'):
             assertion_count = len(state.assertion_failures)
@@ -2986,11 +3030,17 @@ Your response must contain:
 3. The complete class definition
 4. ALL existing test methods, not just the fixed ones
 5. All fields and setup methods
+6. Don't use any mockito related code
 
-IMPORTANT: DO NOT use placeholders or comments like "// All existing test methods remain the same..." 
-or "// [Previous test methods continue unchanged...]". You MUST include ALL actual code verbatim, 
-even if it's unchanged. Shortcuts, abbreviations, or comments indicating omitted code are NOT acceptable.
-I need the complete verbatim code that can be directly saved to a file and compiled.
+ABSOLUTELY FORBIDDEN SHORTCUTS:
+- DO NOT use "// All existing test methods remain the same..."
+- DO NOT use "// [Previous test methods continue unchanged...]"
+- DO NOT use "// ... existing code ..."
+- DO NOT use "// [Previous imports remain exactly the same]"
+- DO NOT use ANY placeholders or comments indicating omitted code
+- You MUST include ALL actual code verbatim, even if it's unchanged
+- Shortcuts, abbreviations, or comments indicating omitted code are NOT acceptable
+- I need the complete verbatim code that can be directly saved to a file and compiled
 
 Format your entire response as a SINGLE complete Java file that I can save and run directly.
     ===============================
@@ -3050,7 +3100,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
             
             prompt += f"""
     SPECIFIC INSTRUCTION:
-    Your task is to add or modify tests to cover the following uncovered line:
+    Your task is to add or modify tests to cover the following uncovered line, don't use any mockito related code:
 
     {line_context}
 
@@ -3093,6 +3143,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
     {chr(10).join(f"- {err}" for err in state.compilation_errors[:10])}
 
     DO NOT use String.repeat() method as it's not available in the Java version used.
+    DO NOT use any mockito related code
     DO NOT call private methods directly - check the modifier in the source code first.
     Make sure all necessary imports are included.
     Declare exceptions with 'throws' where necessary.
@@ -3108,7 +3159,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
     2. Replace nested class organization with clear method naming conventions
     3. Make sure all test methods are still accessible and functional
     4. DO NOT use inner classes or @Nested annotations for organization
-
+    5. DO NOT use any mockito related code
     This is a critical task as nested classes prevent proper coverage measurement.
     """
 
@@ -3122,7 +3173,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
     2. Add detailed comments explaining your findings
     3. Strengthen the test to clearly demonstrate the bug if it's a real issue
     4. Fix incorrect assertions if the test expectation is wrong
-
+    5. DO NOT use any mockito related code
     Finding real bugs is valuable! Don't just change assertions to make tests pass if they're revealing actual issues.
     """
 
@@ -3140,6 +3191,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
     7. Check for resource leaks or memory issues
 
     Don't just focus on coverage - design tests that would reveal potential defects.
+    DO NOT use any mockito related code
     """
 
         elif action['type'] == 'test_edge_cases':
@@ -3156,6 +3208,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
     7. Test combinations of edge cases
 
     Edge case testing is effective at finding bugs not revealed by normal inputs.
+    DO NOT use any mockito related code
     """
 
         elif action['type'] == 'test_for_resource_issues':
@@ -3170,6 +3223,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
     5. Look for methods with complex looping or conditional logic that might have edge cases
 
     Use appropriate assertions and safety mechanisms to detect these issues.
+    DO NOT use any mockito related code
     """
 
         elif action['type'] == 'test_with_special_chars':
@@ -3185,6 +3239,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
     - Comparing output with expected behavior of other systems (like Excel)
     - Testing character escaping, quoting, and encoding handling
     - Testing with mixed character types in the same column
+    DO NOT use any mockito related code
     """
 
         elif action['type'] == 'test_with_numeric_edge_cases':
@@ -3201,6 +3256,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
     - How these numbers are quoted in output
     - How parsing handles these special numeric formats
     - Differences in behavior between columns
+    DO NOT use any mockito related code
     """
 
         elif action['type'] == 'test_with_multiple_iterators':
@@ -3216,6 +3272,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
     - Element consumption between iterators
     - State consistency when using multiple access patterns
     - Testing for unexpected interactions and lost elements
+    DO NOT use any mockito related code
     """
 
         elif action['type'] == 'test_format_compatibility':
@@ -3232,6 +3289,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
     - Character encoding handling
     - Behavior with mixed formats in the same file
     - Compatibility with outputs from other systems
+    DO NOT use any mockito related code
     """
 
         elif action['type'] == 'test_empty_null_values':
@@ -3248,6 +3306,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
     - Whether empty values at different positions are treated consistently
     - Any special index handling or internal representation issues
     - Potential duplicates or conflicts with empty/null entries
+    DO NOT use any mockito related code
     """
 
         elif action['type'] == 'test_boundary_file_structures':
@@ -3265,6 +3324,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
     - Potential array index issues at boundaries
     - Memory allocation or buffer handling problems
     - Error handling for malformed structures
+    DO NOT use any mockito related code
     """
 
         elif action['type'] == 'test_permission_flag_combinations':
@@ -3281,6 +3341,7 @@ Format your entire response as a SINGLE complete Java file that I can save and r
     - Special bit flag combinations
     - How permission bits are interpreted for various file types
     - Potential integer overflow or underflow issues
+    DO NOT use any mockito related code
     """
 
         elif action['type'] == 'test_sequential_operations':
@@ -3422,10 +3483,15 @@ Your response must contain:
 4. ALL existing test methods, not just the fixed ones
 5. All fields and setup methods
 
-IMPORTANT: DO NOT use placeholders or comments like "// All existing test methods remain the same..." 
-or "// [Previous test methods continue unchanged...]". You MUST include ALL actual code verbatim, 
-even if it's unchanged. Shortcuts, abbreviations, or comments indicating omitted code are NOT acceptable.
-I need the complete verbatim code that can be directly saved to a file and compiled.
+ABSOLUTELY FORBIDDEN SHORTCUTS:
+- DO NOT use "// All existing test methods remain the same..."
+- DO NOT use "// [Previous test methods continue unchanged...]"
+- DO NOT use "// ... existing code ..."
+- DO NOT use "// [Previous imports remain exactly the same]"
+- DO NOT use ANY placeholders or comments indicating omitted code
+- You MUST include ALL actual code verbatim, even if it's unchanged
+- Shortcuts, abbreviations, or comments indicating omitted code are NOT acceptable
+- I need the complete verbatim code that can be directly saved to a file and compiled
 
 Format your entire response as a SINGLE complete Java file that I can save and run directly.
     """
@@ -3496,7 +3562,7 @@ def handle_false_positive_tests(test_code, verified_methods, all_bug_finding_met
 
 def improve_test_coverage_with_enhanced_mcts(
     project_dir, prompt_dir, test_prompt_file, class_name, package_name, 
-    initial_test_code, source_code, max_iterations=5, target_coverage=101.0, 
+    initial_test_code, source_code, max_iterations=20, target_coverage=101.0, 
     verify_bugs_mode="batch", expose_bugs=True):
     """
     Use a single Enhanced MCTS tree to improve test coverage for a class
@@ -3534,7 +3600,7 @@ def improve_test_coverage_with_enhanced_mcts(
     test_file_path = save_test_code(initial_test_code, class_name, package_name, project_dir)
     if test_file_path:
         coverage_data, assertion_failures, execution_time, compilation_errors = run_tests_with_jacoco(
-            project_dir, class_name, package_name, f"{package_name}.{class_name}Test"
+            project_dir, class_name, package_name, f"{package_name}.{class_name}Test", False, getattr(self, 'project_type', 'maven')
         )
         initial_coverage = get_coverage_percentage(coverage_data) if coverage_data else 0.0
         logger.info(f"Initial test coverage: {initial_coverage:.2f}%")
@@ -3580,7 +3646,9 @@ def improve_test_coverage_with_enhanced_mcts(
         project_dir, 
         class_name, 
         package_name,
-        f"{package_name}.{class_name}Test"
+        f"{package_name}.{class_name}Test",
+        False,
+        getattr(self, 'project_type', 'maven')
     )
     
     has_critical_errors = len(compilation_errors) > 0
@@ -3816,7 +3884,7 @@ class TestState:
     Base class representing a test state
     """
     
-    def __init__(self, test_code, class_name, package_name, project_dir, source_code=None):
+    def __init__(self, test_code, class_name, package_name, project_dir, source_code=None, project_type='maven'):
         """
         Initialize test state
         
@@ -3826,19 +3894,21 @@ class TestState:
         package_name (str): Package name
         project_dir (str): Project directory
         source_code (str): Source code (optional)
+        project_type (str): Project type ('maven' or 'gradle')
         """
         self.test_code = test_code
         self.class_name = class_name
         self.package_name = package_name
         self.project_dir = project_dir
         self.source_code = source_code
+        self.project_type = project_type
         
         # Test execution metrics
         self.executed = False
         self.coverage = 0.0
         self.compilation_errors = []
         self.detected_bugs = []
-        self.has_logical_bugs = False
+        self.has_bugs = False
         self.logical_bugs = []
         self.execution_time = 0.0
         
@@ -3884,7 +3954,9 @@ class TestState:
         coverage_data, results, execution_time, errors = run_tests_with_jacoco(
             self.project_dir, 
             f"{self.package_name}.{self.class_name}Test",
-            self.package_name
+            self.package_name,
+            False,
+            getattr(self, 'project_type', 'maven')
         )
         
         # Update metrics
@@ -3928,7 +4000,7 @@ class TestState:
                         
                         # Check if it's a logical bug
                         if self.is_logical_bug(bug_info):
-                            self.has_logical_bugs = True
+                            self.has_bugs = True
                             self.logical_bugs.append(bug_info)
         
         # Re-extract methods after potential fixes
@@ -3984,7 +4056,7 @@ class TestState:
                                 # Try to determine if it's a logical bug
                                 method_code = method.get("code", "")
                                 if self.is_method_testing_logic(method_code):
-                                    bug_info["logic_bug_type"] = self.determine_logic_bug_type(method_code, expected, actual)
+                                    bug_info["bug_type"] = self.determine_bug_type(method_code, expected, actual)
                                     return bug_info
         
         return bug_info
@@ -4000,7 +4072,7 @@ class TestState:
         bool: True if likely a logical bug
         """
         # Check if we've already determined it's a logical bug
-        if "logic_bug_type" in bug_info:
+        if "bug_type" in bug_info:
             return True
             
         # Assertion failures are often logical bugs
@@ -4034,18 +4106,18 @@ class TestState:
             return True
             
         # Check for specific logical patterns
-        logic_patterns = [
+        failures = [
             r'if\s*\(.+?\)', r'while\s*\(.+?\)', r'for\s*\(.+?\)',
             r'&&', r'\|\|', r'==', r'!=', r'<=', r'>='
         ]
         
-        for pattern in logic_patterns:
+        for pattern in failures:
             if re.search(pattern, method_code):
                 return True
                 
         return False
     
-    def determine_logic_bug_type(self, method_code, expected, actual):
+    def determine_bug_type(self, method_code, expected, actual):
         """
         Determine type of logic bug
         
@@ -4073,14 +4145,14 @@ class TestState:
         # Check for boolean logic error
         if "true" in str(expected).lower() and "false" in str(actual).lower() or \
            "false" in str(expected).lower() and "true" in str(actual).lower():
-            return "boolean_logic"
+            return "boolean_bug"
             
         # Check for null handling error
         if "null" in str(expected).lower() or "null" in str(actual).lower():
             return "null_handling"
             
         # Default to general logical error
-        return "logical_error"
+        return "failure_error"
     
     def count_logical_bugs(self):
         """Count number of logical bugs"""
@@ -4110,8 +4182,8 @@ class TestState:
                     }
                     
                     # Add logical bug information if available
-                    if "logic_bug_type" in bug:
-                        bug_finding_method["logic_bug_type"] = bug["logic_bug_type"]
+                    if "bug_type" in bug:
+                        bug_finding_method["bug_type"] = bug["bug_type"]
                         bug_finding_method["bug_category"] = "logical"
                     
                     bug_methods.append(bug_finding_method)

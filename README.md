@@ -1,260 +1,314 @@
-# FailMapper Framework - Failure-Aware Monte Carlo Bug Detection Architecture
+# FailMapper: Failure-Aware Monte Carlo Bug Detection Architecture
 
-[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+## Installation
+
+### Prerequisites
+- Python 3.7 or higher
+- Java 8 or higher (for running tests)
+- Maven or Gradle (for Java project build)
+
+### Install Dependencies
+
+#### Option 1: Full Installation (Recommended)
+```bash
+pip install -r requirements.txt
+```
+
+#### Option 2: Minimal Installation
+```bash
+pip install -r requirements-minimal.txt
+```
+
+#### Option 3: Manual Installation
+```bash
+pip install javalang numpy pandas requests anthropic typing-extensions
+```
+
+### Verify Installation
+```bash
+python -c "import javalang, numpy, pandas, requests, anthropic; print('All dependencies installed successfully!')"
+```
 
 ## Overview
 
-FailMapper (Failure-Aware Monte Carlo Bug Detection Architecture) is an intelligent Java code analysis and test generation framework. This framework combines static code analysis, failure scenario model extraction, and Monte Carlo Tree Search (MCTS)-based test generation techniques, specifically designed for detecting bugs in Java code and generating high-quality unit tests.
+FailMapper is an advanced automated unit test generation framework designed specifically for Java projects. It combines static code analysis, failure model extraction, and an enhanced Monte Carlo Tree Search (MCTS) algorithm to intelligently generate unit tests that are optimized for bug detection, particularly logical bugs.
 
-## Core Features
+Unlike traditional test generation tools that focus primarily on code coverage, FailMapper takes a failure-aware approach that specifically targets potential bugs and edge cases through intelligent analysis of code structure, data flow, and logical patterns.
 
-### 🔍 **Multi-dimensional Static Analysis**
-- **Data Flow Graph Analysis** - Track variable lifecycle and data flow direction
-- **Dependency Relationship Analysis** - Analyze inter-class dependencies and method call relationships
-- **Indirect Dependency Analysis** - Identify deep-level code dependencies
-- **Boundary Condition Detection** - Automatically identify potential boundary value issues
+## Key Features
 
-### 🧠 **Intelligent Failure Scenario Modeling**
-- **Model Extraction** - Extract failure scenario causes from source code
-- **Failure Scenarios Detection** - Identify common failure scenarios
-- **Conditional Branch Analysis** - Deep analysis of conditional statements and branch
-- **Exception Handling Analysis** - Check completeness of exception handling
+### 🎯 **Failure-Aware Test Generation**
+- Intelligent bug detection targeting logical errors, boundary conditions, and edge cases
+- Enhanced MCTS algorithm with failure-aware reward functions
+- Multi-dimensional test generation strategies
 
-### 🎯 **Enhanced Test Generation**
-- **Failure-Aware MCTS** - Intelligent test generation based on failure scenario models
-- **Adaptive Test Strategy** - Adjust test strategies based on code characteristics
-- **Coverage-Driven Optimization** - Intelligently improve code coverage
-- **Bug-Driven Testing** - Prioritize generating test cases that can detect potential errors
+### 🔍 **Comprehensive Static Analysis**
+- Multi-layer Java code parsing with fallback mechanisms
+- Data flow graph construction and analysis
+- Dependency analysis (both direct and indirect)
+- Boundary condition and exception handling pattern detection
 
-### 🔬 **Intelligent Error Verification**
-- **LLM-Assisted Verification** - Use large language models to verify detected errors
-- **Multi-mode Verification** - Support immediate verification, batch verification, and other modes
-- **Error Pattern Classification** - Automatic classification and prioritization of errors
+### 🚫 **Anti-Mock Philosophy**
+- Enforces testing with real objects instead of mocking frameworks
+- Ensures authentic integration testing
+- Reveals real-world bugs that mocks might hide
 
-## Project Architecture
+### 🤖 **AI-Powered Bug Verification**
+- Integrates with multiple LLM providers (Claude, GPT, DeepSeek, etc.)
+- Intelligent bug verification and classification
+- Automated defect reporting with severity analysis
+
+### 🔧 **Build Tool Support**
+- Maven and Gradle project support
+- Automatic project type detection
+- JaCoCo integration for coverage tracking
+
+## Architecture
+
+FailMapper follows a three-stage pipeline architecture:
 
 ```
-LAMBDA Framework
-├── Static Analysis Layer
-│   ├── file_analyzer.py          # File parsing and AST analysis
-│   ├── dependency_analyzer.py    # Dependency relationship analysis
-│   ├── data_flow_analyzer.py     # Data flow analysis
-│   └── boundary_exception_analyzer.py # Boundary condition and exception analysis
-│
-├── Modeling Layer
-│   ├── model_extractor.py        # Failure scenario model extraction
-│   ├── failure_scenario.py       # Failure scenario detection
-│   ├── business_logic_analyzer.py # Business logic analysis
-│   └── semantic_analyzer.py      # Semantic analysis
-│
-├── Test Generation Layer
-│   ├── fa_mcts.py                # Failure-aware MCTS algorithm
-│   ├── enhanced_mcts_test_generator.py # Adapted MCTS generator
-│   ├── test_state.py             # Test state management
-│   └── enhanced_test_state.py    # Enhanced test state
-│
-├── Verification & Feedback Layer
-│   ├── bug_verifier.py           # Bug verifier
-│   ├── verify_bug_with_llm.py    # LLM-assisted verification
-│   ├── feedback.py               # Feedback mechanism
-│   └── validation_engine.py      # validation engine
-│
-└── Framework Entry
-    ├── run.py                    # Main runtime interface
-    ├── main.py                   # Static analysis entry point
-    ├── prompt_generator.py       # Test prompt generation for the root node
-    └── failmapper_framework.py   # FailMapper framework core
+Input: Java Project → [Static Analysis] → [Prompt Generation] → [Failure-Aware Test Generation] → Output: Test Cases
 ```
 
-## Installation Requirements
+### Stage 1: Static Analysis Engine
+- Extracts project structure, dependencies, and data flow information
+- Builds comprehensive analysis models for informed test generation
 
-### Python Dependencies
+### Stage 2: Intelligent Prompt Generation
+- Converts static analysis results into structured prompts
+- Resolves dependencies and injects relevant API information
+- Creates comprehensive testing context
+
+### Stage 3: Failure-Aware MCTS Test Generation
+- Uses enhanced MCTS with failure-aware capabilities
+- Employs intelligent strategy selection based on code patterns
+- Provides real-time bug verification and classification
+
+## Installation
+
+### Prerequisites
+- Python 3.8 or higher
+- Java 8 or higher (for target projects)
+- Maven or Gradle (depending on your project)
+
+### Setup
+1. Clone the repository:
 ```bash
-python >= 3.7
+git clone <repository-url>
+cd FailMapper
 ```
 
-### Required Python Packages
+2. Install Python dependencies:
 ```bash
-pip install javalang
-pip install openai
-pip install anthropic
-pip install beautifulsoup4
-pip install lxml
-pip install requests
+pip install -r requirements.txt
 ```
 
-### Java Environment
-- Java 8 or higher
-- Maven (for Java project building and testing)
+3. Configure your LLM provider (set API keys as environment variables):
+```bash
+export ANTHROPIC_API_KEY="your-claude-api-key"
+export OPENAI_API_KEY="your-openai-api-key"
+# or other supported providers
+```
 
-## Quick Start
+## Usage
 
-### 1. Basic Usage
+### Quick Start
 
-Analyze a single Java class and generate tests:
+FailMapper provides a simple entry point script (`run.py`) that orchestrates the entire pipeline:
 
 ```bash
-python run.py /path/to/java/project \
-    --output_dir ./results \
-    --class_name YourClassName \
-    --package com.example.package
+python run.py <project_path> --output_dir <output_directory> --class_name <ClassName> --package <package.name>
 ```
 
-### 2. Step-by-step Usage
+### Parameters
 
-#### Step 1: Static Analysis
+- `project_path`: Path to your Java project root directory
+- `--output_dir`: Directory where analysis results and test cases will be saved
+- `--class_name`: Name of the specific class to test
+- `--package`: Full package name of the class
+- `--project_type`: Project type (`maven` or `gradle`). Auto-detected if not specified
+
+### Example
+
 ```bash
-python main.py /path/to/java/project --output_dir ./analysis_results
+python run.py /path/to/my-java-project --output_dir ./results --class_name Calculator --package com.example.math
 ```
 
-#### Step 2: Generate Test Prompts for Initiallization
+### Advanced Usage
+
+For more control over the testing process, you can use the `failmapper.py` directly:
+
 ```bash
-python prompt_generator.py ./analysis_results/project_name/project_name_combined_analysis.json \
-    --output_dir ./analysis_results/project_name/prompts
+python failmapper.py --project /path/to/project --prompt /path/to/prompts --class Calculator --package com.example.math
 ```
 
-#### Step 3: Run FailMapper Framework
+#### Advanced Parameters
+
+- `--max-iterations`: Maximum MCTS iterations (default: 27)
+- `--target-coverage`: Target coverage percentage (default: 100.0)
+- `--verify-mode`: Bug verification mode (`immediate`, `batch`, or `none`)
+- `--f-weight`: Weight for failure-related rewards (default: 2.0)
+- `--bugs-threshold`: Number of bugs to find before terminating search (default: 1000)
+- `--batch`: Process all classes in the project
+- `--verbose`: Enable verbose logging
+
+### Batch Processing
+
+To test all classes in a project:
+
 ```bash
-python failmapper_framework.py \
-    --project /path/to/java/project \
-    --prompt ./analysis_results/project_name/prompts \
-    --class YourClassName \
-    --package com.example.package
+python failmapper.py --project /path/to/project --prompt /path/to/prompts --batch --output results.json
 ```
 
-## Detailed Configuration Options
+## Output
 
-### run.py Parameters
+FailMapper generates several types of output:
 
-| Parameter | Description | Required | Default |
-|------|------|------|--------|
-| `project_path` | Java project path | ✅ | - |
-| `--output_dir` | Output directory | ✅ | - |
-| `--class_name` | Target class name | ✅ | - |
-| `--package` | Target package name | ✅ | - |
+1. **Static Analysis Results**: JSON files containing project structure, dependencies, and data flow information
+2. **Generated Test Cases**: JUnit test files targeting specific bugs and edge cases
+3. **Bug Reports**: Detailed reports of discovered bugs with severity classification
+4. **Coverage Reports**: Code coverage metrics and analysis
+5. **Execution Metrics**: LLM usage statistics and performance metrics
 
-### failmapper_framework.py Advanced Parameters
+## Configuration
 
-| Parameter | Description | Default |
-|------|------|--------|
-| `--max_iterations` | MCTS maximum iterations | 20 |
-| `--target_coverage` | Target coverage (%) | 100.0 |
-| `--verify_mode` | Verification mode (immediate/batch/none) | batch |
-| `--failure_weight` | Failure awareness weight | 2.0 |
-| `--bugs_threshold` | Bug threshold | 15 |
-| `--verbose` | Verbose output | False |
+ # FailMapper
 
-## Output Description
+## API Key Configuration
 
-### Static Analysis Results
-- `{project_name}_dfg.json` - Data flow graph analysis results
-- `{project_name}_dependency.json` - Dependency relationship analysis results
-- `{project_name}_IDC.json` - Indirect dependency analysis results
-- `{project_name}_combined_analysis.json` - Combined analysis results
+FailMapper supports multiple AI providers for test generation. You need to configure at least one API key to use the system.
 
-### Test Generation Results
-- `prompts/` - Generated test prompt files
-- `generated_tests/` - Generated test code
-- `bug_reports/` - Discovered error reports
-- `coverage_reports/` - Coverage reports
+### Supported Providers
+- **ANTHROPIC** (Claude) - Primary provider, required
+- **OpenAI** (GPT) - Optional, can be used as alternative
+- **DeepSeek** - Optional, can be used as alternative
 
-## Core Algorithms
-
-### 1. Failure-Aware MCTS
-```python
-# Core algorithm concept
-reward = base_reward + bug_weight * bug_score
-```
-- Adjust search strategy based on models
-- Prioritize exploring code paths that may contain errors
-- Dynamically adjust test generation direction
-
-### 2. Failure Scenario Detection
-Supported error patterns:
-- Conditional Errors
-- Boundary Value Errors
-- Null Pointer References
-- Loop Errors
-- Missing Exception Handling
-
-## Usage Examples
-
-### Example 1: Analyze Spring Boot Project
+NOTE: We provide OpenAI and DeepSeek usage,currently, you need to uncomment it in code. We will provide a switch for user friendly.
 ```bash
-python run.py ~/projects/spring-boot-app \
-    --output_dir ./spring_analysis \
-    --class_name UserService \
-    --package com.example.service
-```
+# run.py
+# OpenAI API key (optional)
+if args.openai_api_key or os.environ.get('OPENAI_API_KEY'):
+    openai_key = get_api_key(args, "OpenAI", "OPENAI_API_KEY", "openai_api_key")
+    os.environ['OPENAI_API_KEY'] = openai_key
+    print("✓ OpenAI API key configured successfully")
 
-### Example 2: Batch Processing Mode
+# DeepSeek API key (optional)
+if args.deepseek_api_key or os.environ.get('DEEPSEEK_API_KEY'):
+    deepseek_key = get_api_key(args, "DeepSeek", "DEEPSEEK_API_KEY", "deepseek_api_key")
+    os.environ['DEEPSEEK_API_KEY'] = deepseek_key
+    print("✓ DeepSeek API key configured successfully")
+
+
+parser.add_argument('--openai_api_key', help='OpenAI API key (can also be set via OPENAI_API_KEY environment variable)')
+parser.add_argument('--deepseek_api_key', help='DeepSeek API key (can also be set via DEEPSEEK_API_KEY environment variable)')
+```
 ```bash
-python failmapper_framework.py \
-    --project ~/projects/my-java-app \
-    --prompt ./prompts \
-    --batch \
-    --max_iterations 50 \
-    --bug_weight 3.0
+api_response = call_gpt_api(prompt)
+api_response = call_deepseek_api(prompt)
 ```
 
-## Performance Optimization Recommendations
+### Configuration Methods
 
-### 1. Memory Optimization
-- For large projects, recommend increasing JVM heap memory
-- Use `--verbose` parameter to monitor memory usage
+#### 1. Command Line Arguments (Recommended)
+```bash
+python run.py /path/to/project --output_dir ./output --class_name MyClass --package com.example --anthropic_api_key YOUR_API_KEY
+```
 
-### 2. Time Optimization
-- Adjust `--max_iterations` parameter to balance quality and speed
-- Use `--target_coverage` to set reasonable coverage targets
+#### 2. Environment Variables
+```bash
+export ANTHROPIC_API_KEY="your_anthropic_api_key_here"
 
-### 3. Quality Optimization
-- Increase `--bug_weight` parameter to focus on error detection
-- Use `verify_mode=immediate` for real-time verification
+python run.py /path/to/project --output_dir ./output --class_name MyClass --package com.example
+```
 
-## Troubleshooting
+#### 3. Interactive Input
+If no API key is provided via arguments or environment variables, the system will prompt you to enter them:
+```bash
+python run.py /path/to/project --output_dir ./output --class_name MyClass --package com.example
+# You will be prompted: "Please enter your ANTHROPIC API key:"
+```
 
-### Common Issues
+### Usage Examples
 
-1. **Java Parsing Failed**
-   ```
-   Solution: Check Java syntax or exclude using module-info.java
-   ```
+1. **Basic usage with ANTHROPIC key:**
+```bash
+python run.py /path/to/project --output_dir ./output --class_name Calculator --package com.example.math --anthropic_api_key sk-ant-api03-...
+```
 
-2. **Out of Memory**
-   ```bash
-   export JAVA_OPTS="-Xmx4g"
-   ```
+2. **Multiple providers:**
+```bash
+python run.py /path/to/project \
+  --output_dir ./output \
+  --class_name Calculator \
+  --package com.example.math \
+  --anthropic_api_key sk-ant-api03-...
+```
 
-3. **Dependency Analysis Failed**
-   ```
-   Ensure project structure is complete and dependencies are correct
-   ```
+3. **Using environment variables:**
+```bash
+export ANTHROPIC_API_KEY="sk-ant-api03-..."
+python run.py /path/to/project --output_dir ./output --class_name Calculator --package com.example.math
+```
 
-## Contributing Guidelines
+### Security Notes
+- Never commit API keys to version control
+- Use environment variables or secure secret management for production
+- The interactive input method hides the key while typing for security
 
-We welcome community contributions! Please follow these steps:
 
-1. Fork this repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Create a Pull Request
+### Project Type Detection
 
-## License
+FailMapper automatically detects whether your project uses Maven or Gradle by looking for:
+- `pom.xml` (Maven)
+- `build.gradle` or `build.gradle.kts` (Gradle)
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
+You can override the detection by specifying `--project-type`, recommend for testing Maven projects, Gradle adaption is under test.
 
-## Contact
+## Key Components
 
-For questions or suggestions, please contact us through:
-- Create a [GitHub Issue](issues)
-- Send email to the development team
+- **Static Analysis Engine**: Multi-layer Java parsing and analysis
+- **Failure Scenario Detector**: Identifies potential bug patterns
+- **Enhanced MCTS**: Failure-aware Monte Carlo Tree Search
+- **Bug Verifier**: LLM-powered bug verification and classification
+- **Test Strategy Selector**: Intelligent test generation strategy selection
 
-## Acknowledgments
+## Technical Details
 
-Thanks to all developers and researchers who have contributed to this project.
+### Supported Java Features
+- Java 8-21 language features
+- Generic types and lambda expressions
+- Complex inheritance hierarchies
+- Exception handling patterns
 
----
+### Bug Detection Categories
+- Boundary condition errors (off-by-one, missing checks)
+- Conditional logic errors (wrong operators, precedence issues)
+- State management errors (concurrent access, inconsistent state)
+- Arithmetic operation errors (overflow, divide-by-zero)
+- Data processing errors (null pointer, type casting)
 
-**LAMBDA Framework** - Making Java code analysis smarter and error detection more precise! 
+## Limitations
+
+- Currently supports Java projects only
+- Requires LLM API access for optimal functionality
+
+## Contributing
+
+We welcome contributions! Please see our contributing guidelines for details on how to submit improvements and bug fixes.
+
+<!-- ## License
+
+[License information]
+
+## Citation
+
+If you use FailMapper in your research, please cite:
+
+```bibtex
+[Citation information]
+``` -->
+
+## Support
+
+For questions, issues, or feature requests, please [create an issue](link-to-issues) or contact the development team. 

@@ -13,7 +13,7 @@ import traceback
 from collections import defaultdict
 
 # Import from base implementation
-from enhanced_mcts_test_generator import TestState, TestMethodExtractor
+from enhanced_mcts_test_generator import TestState
 
 logger = logging.getLogger("enhanced_test_state")
 
@@ -22,7 +22,7 @@ class EnhancedTestState(TestState):
     Enhanced version of TestState with more detailed analysis and tracking
     """
     
-    def __init__(self, test_code, class_name, package_name, project_dir, source_code=None):
+    def __init__(self, test_code, class_name, package_name, project_dir, source_code=None, project_type='maven'):
         """
         Initialize enhanced test state
         
@@ -32,9 +32,10 @@ class EnhancedTestState(TestState):
         package_name (str): Package name
         project_dir (str): Project directory
         source_code (str): Source code (optional)
+        project_type (str): Project type ('maven' or 'gradle')
         """
         # Call parent constructor
-        super().__init__(test_code, class_name, package_name, project_dir, source_code)
+        super().__init__(test_code, class_name, package_name, project_dir, source_code, project_type)
         
         # Enhanced tracking properties
         self.method_coverage = {}  # Coverage per test method
@@ -248,7 +249,7 @@ class EnhancedTestState(TestState):
                 self.bug_types[bug_category]["count"] += 1
                 
                 # Track subtype if available
-                subtype = bug.get("subtype", bug.get("logic_bug_type", bug_type))
+                subtype = bug.get("subtype", bug.get("bug_type", bug_type))
                 self.bug_types[bug_category]["subtypes"][subtype] += 1
                 
                 # Track if verified

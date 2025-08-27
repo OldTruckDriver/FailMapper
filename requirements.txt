@@ -1,0 +1,63 @@
+# Core dependencies for test generation and analysis
+javalang>=0.13.0
+numpy>=1.21.0
+pandas>=1.3.0
+
+# HTTP requests and API calls
+requests>=2.25.0
+anthropic>=0.21.3
+
+# XML parsing (included in Python standard library)
+# xml.etree.ElementTree - built-in
+
+# Web scraping and HTTP adapters
+urllib3>=1.26.0
+
+# Statistics and data analysis  
+# statistics - built-in
+
+# Development and utility
+typing-extensions>=4.0.0
+
+# Logging and debugging
+# logging - built-in
+# traceback - built-in
+
+# File and system operations
+# os - built-in
+# sys - built-in  
+# subprocess - built-in
+# argparse - built-in
+# getpass - built-in
+
+# Data structures and collections
+# collections - built-in
+# defaultdict - part of collections
+
+# Time and date handling
+# time - built-in
+# datetime - built-in
+
+# Regular expressions and string processing
+# re - built-in
+
+# JSON handling
+# json - built-in
+
+# Random number generation
+# random - built-in
+
+# File operations
+# glob - built-in
+
+# Optional: For enhanced functionality
+setuptools>=50.0.0
+wheel>=0.36.0
+
+# Optional: Testing framework (if you want to run tests)
+pytest>=6.0.0
+pytest-cov>=2.12.0
+
+# Optional: Code quality tools
+flake8>=3.9.0
+black>=21.0.0 

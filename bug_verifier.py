@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Logic Bug Verifier
+Bug Verifier
 
 This module extends bug verification capabilities with specialized analysis
-for logical bugs. It provides more sophisticated verification of logical issues
+for bugs. It provides more sophisticated verification of bugs
 using pattern matching, code context analysis, and LLM-based verification.
 """
 
@@ -22,12 +22,12 @@ from feedback import call_anthropic_api, call_gpt_api, call_deepseek_api, extrac
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("logic_bug_verifier")
+logger = logging.getLogger("bug_verifier")
 
-class LogicBugVerifier:
+class BugVerifier:
     """
-    Provides specialized verification for logical bugs with enhanced
-    analysis of logical properties, boundary conditions, and code context.
+    Provides specialized verification for bugs with enhanced
+    analysis of properties, boundary conditions, and code context.
     """
     
     def __init__(self, source_code, class_name, package_name):
@@ -44,143 +44,143 @@ class LogicBugVerifier:
         self.package_name = package_name
         
         # Logic bug patterns with verification strategies
-        self.logic_bug_categories = {
-            "incorrect_value": {
-                "verify_method": self._verify_incorrect_value,
-                "confidence_threshold": 0.7
-            },
-            "incorrect_boolean": {
-                "verify_method": self._verify_incorrect_boolean,
-                "confidence_threshold": 0.8
-            },
-            "empty_null_handling": {
-                "verify_method": self._verify_empty_null_handling,
-                "confidence_threshold": 0.6
-            },
-            "index_error": {
-                "verify_method": self._verify_index_error,
-                "confidence_threshold": 0.8
-            },
-            "string_index_error": {  # Add new string index error verification
-                "verify_method": self._verify_string_index_error,
-                "confidence_threshold": 0.8
-            },
-            "array_index_error": {  # Add new array index error verification
-                "verify_method": self._verify_array_index_error,
-                "confidence_threshold": 0.8
-            },
-            "null_reference": {
-                "verify_method": self._verify_null_reference,
-                "confidence_threshold": 0.7
-            },
-            "boundary_error": {
-                "verify_method": self._verify_boundary_error,
-                "confidence_threshold": 0.8
-            },
-            "operator_logic": {
-                "verify_method": self._verify_operator_logic,
-                "confidence_threshold": 0.8
-            },
-            "boolean_logic": {
-                "verify_method": self._verify_boolean_logic,
-                "confidence_threshold": 0.7
-            },
-            "infinite_loop": {
-                "verify_method": self._verify_infinite_loop,
-                "confidence_threshold": 0.9
-            },
-            "resource_leak": {
-                "verify_method": self._verify_resource_leak,
-                "confidence_threshold": 0.8
-            },
-            "resource_management": {
-                "verify_method": self._verify_resource_management,
-                "confidence_threshold": 0.7
-            },
-            "use_after_close": {
-                "verify_method": self._verify_use_after_close,
-                "confidence_threshold": 0.8
-            },
-            "data_operation": {
-                "verify_method": self._verify_data_operation,
-                "confidence_threshold": 0.7
-            },
-            "integer_truncation": {
-                "verify_method": self._verify_integer_truncation,
-                "confidence_threshold": 0.8
-            },
-            "precision_loss": {
-                "verify_method": self._verify_precision_loss,
-                "confidence_threshold": 0.7
-            },
-            "exception_handling": {
-                "verify_method": self._verify_exception_handling,
-                "confidence_threshold": 0.7
-            },
-            "swallowed_exception": {
-                "verify_method": self._verify_swallowed_exception,
-                "confidence_threshold": 0.8
-            },
-            "validation": {
-                "verify_method": self._verify_validation,
-                "confidence_threshold": 0.7 
-            },
-            "concurrency": {
-                "verify_method": self._verify_concurrency,
-                "confidence_threshold": 0.8
-            },
-            "security": {
-                "verify_method": self._verify_security,
-                "confidence_threshold": 0.8
-            }
-        }
+        # self.logic_bug_categories = {
+        #     "incorrect_value": {
+        #         "verify_method": self._verify_incorrect_value,
+        #         "confidence_threshold": 0.7
+        #     },
+        #     "incorrect_boolean": {
+        #         "verify_method": self._verify_incorrect_boolean,
+        #         "confidence_threshold": 0.8
+        #     },
+        #     "empty_null_handling": {
+        #         "verify_method": self._verify_empty_null_handling,
+        #         "confidence_threshold": 0.6
+        #     },
+        #     "index_error": {
+        #         "verify_method": self._verify_index_error,
+        #         "confidence_threshold": 0.8
+        #     },
+        #     "string_index_error": {  # 添加新的字符串索引错误验证
+        #         "verify_method": self._verify_string_index_error,
+        #         "confidence_threshold": 0.8
+        #     },
+        #     "array_index_error": {  # 添加新的数组索引错误验证
+        #         "verify_method": self._verify_array_index_error,
+        #         "confidence_threshold": 0.8
+        #     },
+        #     "null_reference": {
+        #         "verify_method": self._verify_null_reference,
+        #         "confidence_threshold": 0.7
+        #     },
+        #     "boundary_error": {
+        #         "verify_method": self._verify_boundary_error,
+        #         "confidence_threshold": 0.8
+        #     },
+        #     "operator_logic": {
+        #         "verify_method": self._verify_operator_bug,
+        #         "confidence_threshold": 0.8
+        #     },
+        #     "boolean_bug": {
+        #         "verify_method": self._verify_boolean_bug,
+        #         "confidence_threshold": 0.7
+        #     },
+        #     "infinite_loop": {
+        #         "verify_method": self._verify_infinite_loop,
+        #         "confidence_threshold": 0.9
+        #     },
+        #     "resource_leak": {
+        #         "verify_method": self._verify_resource_leak,
+        #         "confidence_threshold": 0.8
+        #     },
+        #     "resource_management": {
+        #         "verify_method": self._verify_resource_management,
+        #         "confidence_threshold": 0.7
+        #     },
+        #     "use_after_close": {
+        #         "verify_method": self._verify_use_after_close,
+        #         "confidence_threshold": 0.8
+        #     },
+        #     "data_operation": {
+        #         "verify_method": self._verify_data_operation,
+        #         "confidence_threshold": 0.7
+        #     },
+        #     "integer_truncation": {
+        #         "verify_method": self._verify_integer_truncation,
+        #         "confidence_threshold": 0.8
+        #     },
+        #     "precision_loss": {
+        #         "verify_method": self._verify_precision_loss,
+        #         "confidence_threshold": 0.7
+        #     },
+        #     "exception_handling": {
+        #         "verify_method": self._verify_exception_handling,
+        #         "confidence_threshold": 0.7
+        #     },
+        #     "swallowed_exception": {
+        #         "verify_method": self._verify_swallowed_exception,
+        #         "confidence_threshold": 0.8
+        #     },
+        #     "validation": {
+        #         "verify_method": self._verify_validation,
+        #         "confidence_threshold": 0.7 
+        #     },
+        #     "concurrency": {
+        #         "verify_method": self._verify_concurrency,
+        #         "confidence_threshold": 0.8
+        #     },
+        #     "security": {
+        #         "verify_method": self._verify_security,
+        #         "confidence_threshold": 0.8
+        #     }
+        # }
         
         # Counter for verification results
         self.verification_results = defaultdict(int)
     
     def verify_bugs(self, bug_methods):
         """
-        Verify a group of bug test methods, ensuring no duplicate counting of the same bug
+        verify a list of bug test methods, ensuring no duplicate counting of the same bug
         
         Parameters:
-        bug_methods (list): List of bug methods to verify
+        bug_methods (list): the list of bug test methods to verify
         
         Returns:
-        list: List of verified bug methods
+        list: the list of verified bug test methods
         """
         import hashlib
         
-        # Use dictionary for deduplication
+        # use a dictionary to deduplicate
         verified_methods_dict = {}
         
         if not bug_methods:
             return []
             
-        logger.info(f"Using logic-aware verification for {len(bug_methods)} bug methods")
+        logger.info(f"using failure-aware verification for {len(bug_methods)} bug methods")
         
-        # Reset verification counter
+        # reset the verification counter
         self.verification_results = defaultdict(int)
         
         try:
-            # Process each bug method
+            # process each bug method
             for method in bug_methods:
                 if not isinstance(method, dict) or "code" not in method:
                     continue
                     
-                # Get or create bug signature
+                # get or create the bug signature
                 bug_signature = method.get("bug_signature")
                 if not bug_signature:
-                    # Create signature
+                    # create the signature
                     method_name = method.get("method_name", "unknown")
                     error = method.get("error", "")
                     bug_signature = f"{method_name}:{hashlib.md5(error.encode()).hexdigest()[:12]}"
                     
-                # If this signature has already been processed, skip it
+                # if the signature has been processed, skip
                 if bug_signature in verified_methods_dict:
-                    logger.info(f"Skipping already verified bug signature: {bug_signature}")
+                    logger.info(f"skipping verified bug signature: {bug_signature}")
                     continue
                     
-                # Extract method information
+                # extract the method information
                 # print("--------------------------------")
                 # print(method)
                 # print("--------------------------------")
@@ -188,52 +188,52 @@ class LogicBugVerifier:
                 bug_type = method['bug_info'][0].get("bug_type", "unknown")
                 method_name = method.get("method_name", "unknown")
                 
-                logger.info(f"Verifying method '{method_name}', bug type: {bug_type}")
+                logger.info(f"verifying method '{method_name}', bug type: {bug_type}")
                 
-                # Use LLM to verify bug
+                # use LLM to verify the bug
                 verification_result = verify_bug_with_llm(
                     method, method_code, self.source_code, self.class_name
                 )
                 
-                # Explicitly set is_real_bug, don't rely on default values
+                # explicitly set is_real_bug, not relying on the default value
                 is_real_bug = verification_result.get("is_real_bug", False)
                 
-                # Merge verification result into method
+                # merge the verification results into the method
                 method_result = {
                     **method,
                     "verified": True,
                     "is_real_bug": is_real_bug,
                     "verification_confidence": verification_result.get("confidence", 0.5),
-                    "verification_reasoning": verification_result.get("reasoning", "Logic bug verification")
+                    "verification_reasoning": verification_result.get("reasoning", "逻辑bug验证")
                 }
                 
-                # Add to result dictionary
+                # add to the result dictionary
                 verified_methods_dict[bug_signature] = method_result
                 
-                # Track verification results
+                # track the verification results
                 if is_real_bug:
                     self.verification_results["true_positive"] += 1
                 else:
                     self.verification_results["false_positive"] += 1
                     
-            # Convert back to list
+            # convert back to a list
             verified_methods = list(verified_methods_dict.values())
             
-            # Record verification summary
+            # record the verification summary
             total_verified = len(verified_methods)
             true_positives = self.verification_results["true_positive"]
             false_positives = self.verification_results["false_positive"]
             
-            # Log verification summary
-            logger.info(f"Verification completed: " +
-                    f"{true_positives} real bugs, " +
-                    f"{false_positives} false positives, " +
-                    f"{total_verified} total methods")
+            # record the verification summary
+            logger.info(f"验证完成: " +
+                    f"{true_positives} 真实bug, " +
+                    f"{false_positives} 误报, " +
+                    f"{total_verified} 总方法数")
             
             return verified_methods
             
         except Exception as e:
-            logger.error(f"Error verifying bugs: {str(e)}")
+            logger.error(f"验证bug时出错: {str(e)}")
             logger.error(traceback.format_exc())
             return []
     
@@ -406,7 +406,7 @@ class LogicBugVerifier:
                 
                 # Check for negation or complex conditions
                 if "!" in assertion_context or "&&" in assertion_context or "||" in assertion_context:
-                    # Likely a real logic bug in boolean expression
+                    # Likely a real bug in boolean expression
                     return {
                         "is_real_bug": True,
                         "confidence": 0.9,
@@ -414,7 +414,7 @@ class LogicBugVerifier:
                     }
         
         # Use LLM for deeper analysis
-        return self._enhanced_llm_verification(method_code, method_info, "boolean_logic")
+        return self._enhanced_llm_verification(method_code, method_info, "boolean_bug")
     
     def _verify_empty_null_handling(self, method_code, method_info):
         """
@@ -432,7 +432,7 @@ class LogicBugVerifier:
         empty_check = re.search(r'assert(?:Equals|True|False)\s*\([^,]*(?:""|isEmpty\(\))', method_code)
         
         if null_check or empty_check:
-            # Look for specific null handling logic in source code
+            # Look for specific null handling in source code
             method_name = method_info.get("method_name", "unknown")
             source_context = self._extract_related_source_code(method_name)
             
@@ -800,9 +800,9 @@ class LogicBugVerifier:
         return self._enhanced_llm_verification(method_code, method_info, "array_index_error", 
                                             "This test may be checking for ArrayIndexOutOfBoundsException issues.")
 
-    def _verify_operator_logic(self, method_code, method_info):
+    def _verify_operator_bug(self, method_code, method_info):
         """
-        Verify operator logic bug with specialized analysis
+        Verify operator bug with specialized analysis
         
         Parameters:
         method_code (str): Method code to verify
@@ -832,7 +832,7 @@ class LogicBugVerifier:
                     return {
                         "is_real_bug": True,
                         "confidence": 0.8,
-                        "reasoning": "Complex logical expressions with mixed operators may have precedence bugs"
+                        "reasoning": "Complex expressions with mixed operators may have precedence bugs"
                     }
         
         # Check for bit operations vs logical operations
@@ -862,9 +862,9 @@ class LogicBugVerifier:
         # Use LLM for deeper analysis
         return self._enhanced_llm_verification(method_code, method_info, "operator_logic")
     
-    def _verify_boolean_logic(self, method_code, method_info):
+    def _verify_boolean_bug(self, method_code, method_info):
         """
-        Verify boolean logic bug with specialized analysis
+        Verify boolean bug with specialized analysis
         
         Parameters:
         method_code (str): Method code to verify
@@ -879,7 +879,7 @@ class LogicBugVerifier:
         if boolean_expr_test:
             expr = boolean_expr_test.group(1)
             
-            # Check for negation (!), likely testing boolean logic
+            # Check for negation (!), likely testing boolean
             if "!" in expr:
                 # Extract source context
                 method_name = method_info.get("method_name", "unknown")
@@ -889,11 +889,11 @@ class LogicBugVerifier:
                 if "!" in source_context and ("if" in source_context or "while" in source_context):
                     # Source uses negation in conditions
                     if self._has_assertion_failure(method_info):
-                        # Failed assertion with negation likely indicates boolean logic bug
+                        # Failed assertion with negation likely indicates boolean bug
                         return {
                             "is_real_bug": True,
                             "confidence": 0.8,
-                            "reasoning": "Boolean expression with negation fails, likely logic error"
+                            "reasoning": "Boolean expression with negation fails"
                         }
         
         # Check for DeMorgan's law testing
@@ -902,7 +902,7 @@ class LogicBugVerifier:
         if demorgan_test:
             # Test likely checking DeMorgan's law application
             if self._has_assertion_failure(method_info):
-                # Failed assertion with DeMorgan pattern likely indicates boolean logic bug
+                # Failed assertion with DeMorgan pattern likely indicates boolean bug
                 return {
                     "is_real_bug": True,
                     "confidence": 0.9,
@@ -910,7 +910,7 @@ class LogicBugVerifier:
                 }
         
         # Use LLM for deeper analysis
-        return self._enhanced_llm_verification(method_code, method_info, "boolean_logic")
+        return self._enhanced_llm_verification(method_code, method_info, "boolean_bug")
     
     def _verify_infinite_loop(self, method_code, method_info):
         """
@@ -1588,7 +1588,7 @@ class LogicBugVerifier:
     
     def _enhanced_llm_verification(self, method_code, method_info, bug_type, additional_context=""):
         """
-        Verify bug using enhanced LLM-based analysis with logic-specific prompt
+        Verify bug using enhanced LLM-based analysis with failure-specific prompt
         
         Parameters:
         method_code (str): Method code to verify
@@ -1599,7 +1599,7 @@ class LogicBugVerifier:
         Returns:
         dict: Verification result
         """
-        # Add specialized prompt for array index errors
+        # 添加针对数组索引错误的专门提示
         array_index_specific_prompt = ""
         if bug_type == "array_index_error":
             array_index_specific_prompt = """
@@ -1613,7 +1613,7 @@ class LogicBugVerifier:
     6. Patterns suggesting IndexOutOfBoundsException or ArrayIndexOutOfBoundsException
     """
         
-        # Add specialized prompt for string index errors
+        # 添加针对字符串索引错误的专门提示
         string_index_specific_prompt = ""
         if bug_type == "string_index_error":
             string_index_specific_prompt = """
@@ -1626,10 +1626,9 @@ class LogicBugVerifier:
     5. Patterns suggesting StringIndexOutOfBoundsException
     """
         
-        # Add specialized prompt for the original basic template
-        # Prepare specialized prompt for logic verification
-        logic_prompt = f"""
-    You are an expert in Java bug verification with specialized knowledge of logical bugs. 
+        # Prepare specialized prompt for bug verification
+        prompt = f"""
+    You are an expert in Java bug verification with specialized knowledge of bugs. 
     I will provide you with a Java test method and source code context for a class.
     The test method potentially reveals a logical bug of type: {bug_type}.
 
@@ -1651,9 +1650,9 @@ class LogicBugVerifier:
     {array_index_specific_prompt}
     {string_index_specific_prompt}
 
-    Please analyze whether this test method reveals a real logical bug in the source code.
-    Logical bugs include boundary errors, operator precedence issues, boolean logic mistakes,
-    off-by-one errors, null handling problems, array index errors, string index errors and other logical flaws.
+    Please analyze whether this test method reveals a real bug in the source code.
+    Bugs include boundary errors, operator precedence issues, boolean logic mistakes,
+    off-by-one errors, null handling problems, array index errors, string index errors and other bugs.
 
     For a bug to be considered real:
     1. It must reveal a true flaw in the source code's logic, not just a testing error
@@ -1661,16 +1660,16 @@ class LogicBugVerifier:
     3. It must not merely be a test that expects different behavior than intended
 
     Give your verdict in this format:
-    1. VERDICT: "REAL LOGICAL BUG" or "FALSE POSITIVE"
+    1. VERDICT: "REAL BUG" or "FALSE POSITIVE"
     2. CONFIDENCE: A number between 1-10
-    3. REASONING: Your detailed analysis of the logical issue
+    3. REASONING: Your detailed analysis of the bug
 
-    Focus specifically on the logical properties of the code and how the test reveals logical flaws.
+    Focus specifically on the properties of the code and how the test reveals bugs.
     """
         try:
             # Call the LLM API
-            api_response = call_anthropic_api(logic_prompt)
-            # api_response = call_deepseek_api(logic_prompt)
+            api_response = call_anthropic_api(prompt)
+            # api_response = call_deepseek_api(prompt)
             
             if not api_response or len(api_response) < 50:
                 # Fall back to standard verification

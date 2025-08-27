@@ -17,7 +17,7 @@ import traceback
 # Import static analysis components
 from semantic_analyzer import SemanticAnalyzer
 from implementation_analyzer import ImplementationAnalyzer
-from logic_validation_engine import LogicValidationEngine
+from validation_engine import ValidationEngine
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -43,7 +43,7 @@ class BusinessLogicAnalyzer:
         # Initialize analyzers
         self.semantic_analyzer = SemanticAnalyzer()
         self.implementation_analyzer = ImplementationAnalyzer()
-        self.validation_engine = LogicValidationEngine()
+        self.validation_engine = ValidationEngine()
         
         logger.info("Business Logic Analyzer initialized")
     
@@ -364,7 +364,7 @@ class BusinessLogicAnalyzer:
         elif any(word in mismatch for word in ["null", "empty"]):
             return "null_handling_error"
         elif any(word in mismatch for word in ["logic", "boolean", "condition"]):
-            return "boolean_logic_error"
+            return "boolean_bug_error"
         elif any(word in mismatch for word in ["resource", "close", "leak"]):
             return "resource_management_error"
         else:

@@ -8,7 +8,7 @@ focusing on control flow, data operations, and algorithm patterns.
 
 import re
 import logging
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
