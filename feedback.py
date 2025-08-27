@@ -2419,8 +2419,7 @@ def batch_process_classes(project_dir, prompt_dir, output_file=None, max_attempt
     
     results = []
     success_count = 0
-    # best_results_dir = "/Users/ruiqidong/Desktop/unittest/dataset/cli_best_tests/src/test/java/org/apache/commons/cli"
-    # os.makedirs(best_results_dir, exist_ok=True)
+
     
     for file_path in valid_files:
         class_name = os.path.basename(file_path).replace("_test_prompt.txt", "").replace(".txt", "")
