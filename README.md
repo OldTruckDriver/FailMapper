@@ -138,16 +138,17 @@ python run.py /path/to/my-java-project --output_dir ./results --class_name Calcu
 For more control over the testing process, you can use the `failmapper.py` directly:
 
 ```bash
-python failmapper.py --project /path/to/project --prompt /path/to/prompts --class Calculator --package com.example.math
+python static_analysis.py /path/to/{project_name} --output_dir {output}
+python prompt_generator.py json_path /path/to/{output}/{project_name}/{project_name}_combined_analysis.json --output_dir {prompt_output}
+python failmapper.py --project /path/to/{project_name} --prompt /path/to/{prompt_output} --class Calculator --package com.example.math
 ```
 
 #### Advanced Parameters
 
 - `--max-iterations`: Maximum MCTS iterations (default: 27)
 - `--target-coverage`: Target coverage percentage (default: 100.0)
-- `--verify-mode`: Bug verification mode (`immediate`, `batch`, or `none`)
 - `--f-weight`: Weight for failure-related rewards (default: 2.0)
-- `--bugs-threshold`: Number of bugs to find before terminating search (default: 1000)
+- `--bugs-threshold`: Number of potential bugs to find before terminating search (default: 1000)
 - `--batch`: Process all classes in the project
 - `--verbose`: Enable verbose logging
 
