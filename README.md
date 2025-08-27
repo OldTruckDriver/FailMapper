@@ -26,10 +26,7 @@ pip install -r requirements-minimal.txt
 pip install javalang numpy pandas requests anthropic typing-extensions
 ```
 
-### Verify Installation
-```bash
-python -c "import javalang, numpy, pandas, requests, anthropic; print('All dependencies installed successfully!')"
-```
+
 
 ## Overview
 
