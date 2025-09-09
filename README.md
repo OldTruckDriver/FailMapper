@@ -36,28 +36,28 @@ Unlike traditional test generation tools that focus primarily on code coverage, 
 
 ## Key Features
 
-### 🎯 **Failure-Aware Test Generation**
+### **Failure-Aware Test Generation**
 - Intelligent bug detection targeting logical errors, boundary conditions, and edge cases
 - Enhanced MCTS algorithm with failure-aware reward functions
 - Multi-dimensional test generation strategies
 
-### 🔍 **Comprehensive Static Analysis**
+### **Comprehensive Static Analysis**
 - Multi-layer Java code parsing with fallback mechanisms
 - Data flow graph construction and analysis
 - Dependency analysis (both direct and indirect)
 - Boundary condition and exception handling pattern detection
 
-### 🚫 **Anti-Mock Philosophy**
+### **Anti-Mock Philosophy**
 - Enforces testing with real objects instead of mocking frameworks
 - Ensures authentic integration testing
 - Reveals real-world bugs that mocks might hide
 
-### 🤖 **AI-Powered Bug Verification**
+### **AI-Powered Bug Verification**
 - Integrates with multiple LLM providers (Claude, GPT, DeepSeek, etc.)
 - Intelligent bug verification and classification
 - Automated defect reporting with severity analysis
 
-### 🔧 **Build Tool Support**
+### **Build Tool Support**
 - Maven and Gradle project support
 - Automatic project type detection
 - JaCoCo integration for coverage tracking
